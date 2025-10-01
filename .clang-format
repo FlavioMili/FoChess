@@ -1,0 +1,21 @@
+BasedOnStyle: Google
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+
+ColumnLimit: 100
+DerivePointerAlignment: false
+PointerAlignment: Left
+
+IncludeBlocks: Regroup
+SortIncludes: true
+IncludeCategories:
+  - Regex: '^<.*\.h>'
+    Priority: 1
+  - Regex: '^<.*>'
+    Priority: 2
+  - Regex: '.*'
+    Priority: 3
+
+AllowShortFunctionsOnASingleLine: Empty
+BreakBeforeBraces: Attach
