@@ -53,7 +53,7 @@ inline Bitboard bb_down_right(Bitboard bb) {
   return bb_down(bb_right(bb));
 }
 
-// ----------------- pawns -----------------
+
 inline Bitboard pawn_attacks(Square sq, Color c) {
   Bitboard bb = square_bb(sq);
   if (c == WHITE)
@@ -89,7 +89,6 @@ inline Bitboard pawn_moves(Square sq, Color c, Bitboard empty, Bitboard friendly
   return moves;
 }
 
-// ----------------- knights -----------------
 inline Bitboard knight_attacks(Square sq) {
   Bitboard bb = square_bb(sq);
   Bitboard l1 = (bb >> 1) & ~FILE_H;
@@ -105,7 +104,6 @@ inline Bitboard knight_moves(Square sq, Bitboard friendly) {
   return knight_attacks(sq) & ~friendly;
 }
 
-// ----------------- king -----------------
 inline Bitboard king_attacks(Square sq) {
   Bitboard bb = square_bb(sq);
   return bb_up(bb) | bb_down(bb) | bb_left(bb) | bb_right(bb) |
@@ -117,7 +115,6 @@ inline Bitboard king_moves(Square sq, Bitboard friendly) {
   return king_attacks(sq) & ~friendly;
 }
 
-// ----------------- sliding pieces -----------------
 inline Bitboard rook_attacks(Square sq, Bitboard occ) {
   Bitboard attacks = 0;
   Bitboard bb = square_bb(sq);
