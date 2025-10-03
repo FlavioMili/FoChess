@@ -1,3 +1,4 @@
 build
 compile_commands.json
 add_copyright_header.sh
+.cache
