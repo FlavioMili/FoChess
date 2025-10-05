@@ -1,17 +1,17 @@
 
 #include "movegen.h"
 
-#include <cstddef>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "board.h"
 #include "fen.h"
 
 std::string square_to_str(Square sq) {
   char file = 'a' + (sq % 8);
-  char rank = '1' + (7 - (sq / 8));  // rank 1 is bottom
-  return std::string{file, rank};
+  char rank = static_cast<char>('1' + (7 - (sq / 8)));  // rank 1 is bottom
+  return {file, rank};
 }
 
 std::string move_to_str(const Move& m, const Board& board) {
@@ -54,12 +54,11 @@ int main() {
   std::cout << "Printing parsed board:\n";
   board.printBoard();
 
-  MoveGen mg(board);
-  mg.generate_all();
+  std::vector<Move> mg = MoveGen::generate_all(board);
 
-  std::cout << "\nGenerated " << mg.count() << " moves:\n";
-  for (size_t i = 0; i < mg.count(); ++i) {
-    std::cout << move_to_str(mg.moves()[i], board) << "\n";
+  std::cout << "\nGenerated " << mg.size() << " moves:\n";
+  for (const auto& move : mg) {
+    std::cout << move_to_str(move, board) << "\n";
   }
 
   return 0;

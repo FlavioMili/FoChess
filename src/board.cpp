@@ -119,7 +119,6 @@ void Board::printBoard() const {
   std::cout << "\n   a b c d e f g h\n";
 }
 
-
 inline Bitboard Board::attacks_to(Square sq) const {
   Bitboard attackers = 0;
   Bitboard occ = occupancy[WHITE] | occupancy[BLACK];
@@ -132,26 +131,35 @@ inline Bitboard Board::attacks_to(Square sq) const {
         Bitboard attacks = 0;
 
         switch (piece) {
-          case PAWN:   attacks = Bitboards::pawn_attacks(from, static_cast<Color>(color)); break;
-          case KNIGHT: attacks = Bitboards::knight_attacks(from); break;
-          case BISHOP: attacks = Bitboards::bishop_attacks(from, occ); break;
-          case ROOK:   attacks = Bitboards::rook_attacks(from, occ); break;
-          case QUEEN:  attacks = Bitboards::queen_attacks(from, occ); break;
-          case KING:   attacks = Bitboards::king_attacks(from); break;
+          /* The third field takes as input enemies so that way we can
+           * get enemies with this simple trick*/
+          case PAWN:
+            attacks = Bitboards::pawn_attacks(from, static_cast<Color>(color),
+                                              occupancy[Color::BLACK - color]);
+            break;
+          case KNIGHT:
+            attacks = Bitboards::knight_attacks(from); break;
+          case BISHOP:
+            attacks = Bitboards::bishop_attacks(from, occ); break;
+          case ROOK:
+            attacks = Bitboards::rook_attacks(from, occ); break;
+          case QUEEN:
+            attacks = Bitboards::queen_attacks(from, occ); break;
+          case KING:
+            attacks = Bitboards::king_attacks(from); break;
         }
 
         if (attacks & Bitboards::square_bb(sq)) {
           attackers |= Bitboards::square_bb(from);
         }
 
-        bb &= bb - 1; // clear LSB
+        bb &= bb - 1;  // clear LSB
       }
     }
   }
 
   return attackers;
 }
-
 
 Color Board::color_on(Square sq) const {
   Bitboard sq_bb = Bitboards::square_bb(sq);

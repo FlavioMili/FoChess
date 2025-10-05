@@ -100,7 +100,7 @@ inline Bitboard bb_down_right(Bitboard bb) {
   return bb_down(bb_right(bb));
 }
 
-inline Bitboard pawn_attacks(Square sq, Color c) {
+inline Bitboard pawn_attacks_mask(Square sq, Color c) {
   Bitboard bb = square_bb(sq);
   if (c == WHITE)
     return bb_up_left(bb) | bb_up_right(bb);
@@ -108,30 +108,36 @@ inline Bitboard pawn_attacks(Square sq, Color c) {
     return bb_down_left(bb) | bb_down_right(bb);
 }
 
+inline Bitboard pawn_attacks(Square sq, Color c, Bitboard enemies) {
+  // Mask the generic attack mask with the enemy bitboard so captures only appear
+  return pawn_attacks_mask(sq, c) & enemies;
+}
+
 inline Bitboard pawn_moves(Square sq, Color c, Bitboard empty, Bitboard friendly) {
   Bitboard moves = 0;
   Bitboard bb = square_bb(sq);
+  Bitboard enemies = (~empty) & ~friendly;
 
   if (c == WHITE) {
     Bitboard one = bb_up(bb) & empty;
     if (one) {
       moves |= one;
-      // double push only from rank 2
-      if (rank_of(sq) == 1) moves |= bb_up(one) & empty;
+      if (rank_of(sq) == 1)
+        moves |= bb_up(one) & empty;
     }
-    moves |= pawn_attacks(sq, WHITE) & ~friendly;
+    moves |= pawn_attacks(sq, WHITE, enemies);
   } else {
     Bitboard one = bb_down(bb) & empty;
     if (one) {
       moves |= one;
-      // double push only from rank 7
-      if (rank_of(sq) == 6) moves |= bb_down(one) & empty;
+      if (rank_of(sq) == 6)
+        moves |= bb_down(one) & empty;
     }
-    moves |= pawn_attacks(sq, BLACK) & ~friendly;
+    moves |= pawn_attacks(sq, BLACK, enemies);
   }
-
   return moves;
 }
+
 
 inline Bitboard knight_attacks(Square sq) {
   Bitboard bb = square_bb(sq);
@@ -140,8 +146,8 @@ inline Bitboard knight_attacks(Square sq) {
   Bitboard r1 = (bb << 1) & ~FILE_A;
   Bitboard r2 = (bb << 2) & ~(FILE_A | (FILE_A << 1));
 
-  return (l2 << 8) | (l2 >> 8) | (r2 << 8) | (r2 >> 8) | (l1 << 16) | (l1 >> 16) | (r1 << 16) |
-         (r1 >> 16);
+  return (l2 << 8) | (l2 >> 8) | (r2 << 8) | (r2 >> 8) |
+  (l1 << 16) | (l1 >> 16) | (r1 << 16) | (r1 >> 16);
 }
 
 inline Bitboard knight_moves(Square sq, Bitboard friendly) {
@@ -150,8 +156,9 @@ inline Bitboard knight_moves(Square sq, Bitboard friendly) {
 
 inline Bitboard king_attacks(Square sq) {
   Bitboard bb = square_bb(sq);
-  return bb_up(bb) | bb_down(bb) | bb_left(bb) | bb_right(bb) | bb_up_left(bb) | bb_up_right(bb) |
-         bb_down_left(bb) | bb_down_right(bb);
+  return bb_up(bb) | bb_down(bb) | bb_left(bb) | bb_right(bb) |
+  bb_up_left(bb) | bb_up_right(bb) |
+  bb_down_left(bb) | bb_down_right(bb);
 }
 
 inline Bitboard king_moves(Square sq, Bitboard friendly) {

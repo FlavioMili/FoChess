@@ -7,31 +7,25 @@
 
 #pragma once
 
-#include <cstddef>
+#include <cstdint>
 #include "board.h"
 #include "types.h"
 
-constexpr int MAX_MOVES = 218;
+#include <vector>
 
-class MoveGen {
- public:
-  MoveGen(const Board& b) : board(b), move_count(0) {}
+constexpr uint8_t MAX_MOVES = 218;
 
-  void generate_all();
-  const std::array<Move, MAX_MOVES>& moves() const { return move_list; }
-  size_t count() const { return move_count; }
+namespace MoveGen {
 
- private:
-  const Board& board;
-  std::array<Move, MAX_MOVES> move_list;
-  size_t move_count;
+// Generate all pseudo-legal moves for the side to move
+std::vector<Move> generate_all(const Board& board);
 
-  void add_move(Square from, Square to, Piece promo = KNIGHT);
+// Specialized generators for debugging or profiling
+void generate_pawn_moves(const Board& board, Color c, std::vector<Move>& moves);
+void generate_knight_moves(const Board& board, Color c, std::vector<Move>& moves);
+void generate_bishop_moves(const Board& board, Color c, std::vector<Move>& moves);
+void generate_rook_moves(const Board& board, Color c, std::vector<Move>& moves);
+void generate_queen_moves(const Board& board, Color c, std::vector<Move>& moves);
+void generate_king_moves(const Board& board, Color c, std::vector<Move>& moves);
 
-  void generate_pawn_moves(Color c, Square sq);
-  void generate_knight_moves(Color c, Square sq);
-  void generate_bishop_moves(Color c, Square sq);
-  void generate_rook_moves(Color c, Square sq);
-  void generate_queen_moves(Color c, Square sq);
-  void generate_king_moves(Color c, Square sq);
-};
+}  // namespace MoveGen

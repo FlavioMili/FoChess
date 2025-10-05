@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <cctype>
 #include <cstdint>
 
 enum Square : uint8_t {
@@ -87,9 +86,8 @@ class Move {
   constexpr bool operator==(const Move& m) const { return move == m.move; }
   constexpr bool operator!=(const Move& m) const { return move != m.move; }
 
-  template<MoveType T>
-  static constexpr Move make(Square from, Square to, Piece pt = KNIGHT) {
-    return Move(static_cast<uint16_t>(T | ((pt - KNIGHT) << 12) | (from << 6) | to));
+  static constexpr Move make(Square from, Square to, Piece pt = KNIGHT, MoveType type = MoveType::NORMAL) {
+    return Move(static_cast<uint16_t>(type | ((pt - KNIGHT) << 12) | (from << 6) | to));
   }
 
   constexpr MoveType type() const { return MoveType((move >> 14) & 3); }
