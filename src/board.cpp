@@ -99,7 +99,7 @@ void Board::printBoard() const {
   for (int rank = 7; rank >= 0; --rank) {
     std::cout << rank + 1 << "  ";
     for (int file = 0; file < 8; ++file) {
-      int sq = rank * 8 + file;  // A8=0, H1=63
+      int sq = rank * 8 +  (7 - file);  // A8=0, H1=63
       Bitboard mask = 1ULL << sq;
 
       char symbol = '.';

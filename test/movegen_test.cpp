@@ -47,9 +47,8 @@ std::string move_to_str(const Move& m, const Board& board) {
   return s;
 }
 
-int main() {
-  std::string startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
-  Board board = FEN::parse(startFEN);
+void TestBoardGeneration(std::string fen) {
+  Board board = FEN::parse(fen);
 
   std::cout << "Printing parsed board:\n";
   board.printBoard();
@@ -60,6 +59,15 @@ int main() {
   for (const auto& move : mg) {
     std::cout << move_to_str(move, board) << "\n";
   }
+  std::cout << "\n\n\n";
+}
+
+int main() {
+  std::string startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
+  TestBoardGeneration(startFEN);
+
+  std::string complexFEN = "8/8/8/1pP3n1/8/5k2/5N2/4K3 w - b6 0 2";
+  TestBoardGeneration(complexFEN);
 
   return 0;
 }
