@@ -47,8 +47,8 @@ enum MoveType : uint8_t {
 class Move {
  public:
   constexpr Move() = default;
-  constexpr Move(Square from, Square to) :
-    move(static_cast<uint16_t>((from << 6) + to)) {}
+  constexpr Move(Square from, Square to, Piece pt = KNIGHT, MoveType type = MoveType::NORMAL)
+      : move(static_cast<uint16_t>((type) | ((pt - KNIGHT) << 12) | (from << 6) | to)) {}
 
   constexpr Square from_sq() const { return Square((move >> 6) & 0x3F); }
   constexpr Square to_sq() const { return Square(move & 0x3F); }
@@ -57,10 +57,6 @@ class Move {
 
   constexpr bool operator==(const Move& m) const { return move == m.move; }
   constexpr bool operator!=(const Move& m) const { return move != m.move; }
-
-  static constexpr Move make(Square from, Square to, Piece pt = KNIGHT, MoveType type = MoveType::NORMAL) {
-    return Move(static_cast<uint16_t>(type | ((pt - KNIGHT) << 12) | (from << 6) | to));
-  }
 
   constexpr MoveType type() const { return MoveType((move >> 14) & 3); }
   constexpr Piece promotion_type() const { return Piece(((move >> 12) & 3) + KNIGHT); }

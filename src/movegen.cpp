@@ -57,7 +57,7 @@ std::vector<Move> generate_all(const Board& board) {
 
       while (targets) {
         Square to = static_cast<Square>(__builtin_ctzll(targets));
-        move_list.push_back(Move::make(from, to));
+        move_list.push_back(Move(from, to));
         targets &= targets - 1;
       }
 
@@ -79,7 +79,7 @@ void generate_pawn_moves(const Board& board, Color c, std::vector<Move>& moves) 
 
     while (targets) {
       Square to = static_cast<Square>(__builtin_ctzll(targets));
-      moves.push_back(Move::make(from, to, KNIGHT, MoveType::NORMAL));
+      moves.push_back(Move(from, to, KNIGHT, MoveType::NORMAL));
       targets &= targets - 1;
     }
 
@@ -97,7 +97,7 @@ void generate_knight_moves(const Board& board, Color c, std::vector<Move>& moves
 
     while (targets) {
       Square to = static_cast<Square>(__builtin_ctzll(targets));
-      moves.push_back(Move::make(from, to, KNIGHT, MoveType::NORMAL));
+      moves.push_back(Move(from, to, KNIGHT, MoveType::NORMAL));
       targets &= targets - 1;
     }
 
@@ -116,7 +116,7 @@ void generate_bishop_moves(const Board& board, Color c, std::vector<Move>& moves
 
     while (targets) {
       Square to = static_cast<Square>(__builtin_ctzll(targets));
-      moves.push_back(Move::make(from, to, KNIGHT, MoveType::NORMAL));
+      moves.push_back(Move(from, to, KNIGHT, MoveType::NORMAL));
       targets &= targets - 1;
     }
 
@@ -135,7 +135,7 @@ void generate_rook_moves(const Board& board, Color c, std::vector<Move>& moves) 
 
     while (targets) {
       Square to = static_cast<Square>(__builtin_ctzll(targets));
-      moves.push_back(Move::make(from, to, KNIGHT, MoveType::NORMAL));
+      moves.push_back(Move(from, to, KNIGHT, MoveType::NORMAL));
       targets &= targets - 1;
     }
 
@@ -154,7 +154,7 @@ void generate_queen_moves(const Board& board, Color c, std::vector<Move>& moves)
 
     while (targets) {
       Square to = static_cast<Square>(__builtin_ctzll(targets));
-      moves.push_back(Move::make(from, to, KNIGHT, MoveType::NORMAL));
+      moves.push_back(Move(from, to, KNIGHT, MoveType::NORMAL));
       targets &= targets - 1;
     }
 
@@ -172,7 +172,7 @@ void generate_king_moves(const Board& board, Color c, std::vector<Move>& moves) 
 
     while (targets) {
       Square to = static_cast<Square>(__builtin_ctzll(targets));
-      moves.push_back(Move::make(from, to, KNIGHT, MoveType::NORMAL));
+      moves.push_back(Move(from, to, KNIGHT, MoveType::NORMAL));
       targets &= targets - 1;
     }
 
