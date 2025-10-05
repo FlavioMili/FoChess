@@ -9,7 +9,6 @@
 
 #include <string>
 
-#include "bitboard.h"
 #include "board.h"
 
 namespace FEN {
