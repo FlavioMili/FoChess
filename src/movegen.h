@@ -10,6 +10,7 @@
 #include <cstdint>
 #include "board.h"
 #include "types.h"
+#include "move.h"
 
 #include <vector>
 
