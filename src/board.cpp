@@ -12,34 +12,6 @@
 
 #include "types.h"
 
-static char pieceChar(Piece pt, Color c) {
-  char ch = '?';
-  switch (pt) {
-    case PAWN:
-      ch = 'P';
-      break;
-    case KNIGHT:
-      ch = 'N';
-      break;
-    case BISHOP:
-      ch = 'B';
-      break;
-    case ROOK:
-      ch = 'R';
-      break;
-    case QUEEN:
-      ch = 'Q';
-      break;
-    case KING:
-      ch = 'K';
-      break;
-    default:
-      ch = '-';
-      break;
-  }
-  if (c == BLACK) ch = static_cast<char>(std::tolower(ch));
-  return ch;
-}
 
 // ---------------- Constructor ----------------
 Board::Board()
@@ -134,7 +106,7 @@ void Board::printBoard() const {
       for (size_t c = 0; c < 2; ++c) {
         for (size_t p = 0; p < 6; ++p) {
           if (pieces[c][p] & mask) {
-            symbol = pieceChar(static_cast<Piece>(p), static_cast<Color>(c));
+            symbol = PrintingHelpers::pieceChar(static_cast<Piece>(p), static_cast<Color>(c));
             goto print_done;
           }
         }
@@ -145,4 +117,58 @@ void Board::printBoard() const {
     std::cout << '\n';
   }
   std::cout << "\n   a b c d e f g h\n";
+}
+
+
+inline Bitboard Board::attacks_to(Square sq) const {
+  Bitboard attackers = 0;
+  Bitboard occ = occupancy[WHITE] | occupancy[BLACK];
+
+  for (size_t color = WHITE; color <= BLACK; ++color) {
+    for (size_t piece = PAWN; piece <= KING; ++piece) {
+      Bitboard bb = pieces[color][piece];
+      while (bb) {
+        Square from = static_cast<Square>(__builtin_ctzll(bb));  // index of LSB
+        Bitboard attacks = 0;
+
+        switch (piece) {
+          case PAWN:   attacks = Bitboards::pawn_attacks(from, static_cast<Color>(color)); break;
+          case KNIGHT: attacks = Bitboards::knight_attacks(from); break;
+          case BISHOP: attacks = Bitboards::bishop_attacks(from, occ); break;
+          case ROOK:   attacks = Bitboards::rook_attacks(from, occ); break;
+          case QUEEN:  attacks = Bitboards::queen_attacks(from, occ); break;
+          case KING:   attacks = Bitboards::king_attacks(from); break;
+        }
+
+        if (attacks & Bitboards::square_bb(sq)) {
+          attackers |= Bitboards::square_bb(from);
+        }
+
+        bb &= bb - 1; // clear LSB
+      }
+    }
+  }
+
+  return attackers;
+}
+
+
+Color Board::color_on(Square sq) const {
+  Bitboard sq_bb = Bitboards::square_bb(sq);
+  if (occupancy[WHITE] & sq_bb) return WHITE;
+  if (occupancy[BLACK] & sq_bb) return BLACK;
+  return NO_COLOR;
+}
+
+Piece Board::piece_on(Square sq) const {
+  Bitboard sq_bb = Bitboards::square_bb(sq);
+
+  for (size_t color = WHITE; color <= BLACK; ++color) {
+    for (size_t pt = PAWN; pt <= KING; ++pt) {
+      if (pieces[color][pt] & sq_bb) {
+        return static_cast<Piece>(pt);
+      }
+    }
+  }
+  return NO_PIECE;
 }
