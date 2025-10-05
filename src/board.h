@@ -49,7 +49,7 @@ struct Board {
   Color color_on(Square sq) const;
   Piece piece_on(Square sq) const;
 
-  inline Bitboard attacks_to(Square sq) const;
+  Bitboard attacks_to(Square sq) const;
 
   std::array<std::array<Bitboard, 6>, 2> pieces;  // [color][pieceType]
   std::array<Bitboard, 2> occupancy;              // white/black
@@ -63,35 +63,3 @@ struct Board {
   void updateOccupancy();
 };
 
-namespace PrintingHelpers {
-
-constexpr char pieceChar(Piece pt, Color c) {
-  char ch = '?';
-  switch (pt) {
-    case PAWN:
-      ch = 'P';
-      break;
-    case KNIGHT:
-      ch = 'N';
-      break;
-    case BISHOP:
-      ch = 'B';
-      break;
-    case ROOK:
-      ch = 'R';
-      break;
-    case QUEEN:
-      ch = 'Q';
-      break;
-    case KING:
-      ch = 'K';
-      break;
-    default:
-      ch = '-';
-      break;
-  }
-  if (c == BLACK) ch = static_cast<char>(std::tolower(ch));
-  return ch;
-}
-
-} // namespace printingBoard

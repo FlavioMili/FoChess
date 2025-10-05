@@ -95,31 +95,8 @@ void Board::updateOccupancy() {
   }
 }
 
-void Board::printBoard() const {
-  for (int rank = 7; rank >= 0; --rank) {
-    std::cout << rank + 1 << "  ";
-    for (int file = 0; file < 8; ++file) {
-      int sq = rank * 8 +  (7 - file);  // A8=0, H1=63
-      Bitboard mask = 1ULL << sq;
 
-      char symbol = '.';
-      for (size_t c = 0; c < 2; ++c) {
-        for (size_t p = 0; p < 6; ++p) {
-          if (pieces[c][p] & mask) {
-            symbol = PrintingHelpers::pieceChar(static_cast<Piece>(p), static_cast<Color>(c));
-            goto print_done;
-          }
-        }
-      }
-    print_done:
-      std::cout << symbol << ' ';
-    }
-    std::cout << '\n';
-  }
-  std::cout << "\n   a b c d e f g h\n";
-}
-
-inline Bitboard Board::attacks_to(Square sq) const {
+Bitboard Board::attacks_to(Square sq) const {
   Bitboard attackers = 0;
   Bitboard occ = occupancy[WHITE] | occupancy[BLACK];
 

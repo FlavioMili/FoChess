@@ -9,6 +9,7 @@
 #include <iostream>
 
 #include "board.h"
+#include "helpers.h"
 #include "fen.h"
 
 int main() {
@@ -18,7 +19,7 @@ int main() {
   assert(board.sideToMove == WHITE);
 
   std::cout << "Printing parsed board:\n";
-  board.printBoard();
+  PrintingHelpers::printBoard(board);
 
   // Convert back to FEN
   std::string fen2 = FEN::to_fen(board);
@@ -31,7 +32,7 @@ int main() {
   std::string customFEN = "r1bqkb1r/ppp2ppp/2n1pn2/3p4/3P4/2N1PN2/PPP2PPP/8 b KQkq -";
   Board customBoard = FEN::parse(customFEN);
   std::cout << "\nCustom board:\n";
-  customBoard.printBoard();
+  PrintingHelpers::printBoard(customBoard);
   std::string fen3 = FEN::to_fen(customBoard);
   assert(fen3.substr(0, customFEN.size()) == customFEN);
 
