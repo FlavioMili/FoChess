@@ -9,7 +9,6 @@
 
 #include <cassert>
 #include <cstddef>
-#include <vector>
 
 #include "bitboard.h"
 #include "types.h"
@@ -18,65 +17,24 @@ namespace MoveGen {
 
 size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
   size_t n_moves = 0;
-  const Color friendly_color = board.sideToMove;
-  const Color enemy_color = static_cast<Color>(Color::BLACK - friendly_color);
+  const Color friendly_color = board.getSideToMove();
+  const Color enemy_color = (friendly_color == WHITE) ? BLACK : WHITE;
 
-  const Bitboard friendly = board.occupancy[friendly_color];
-  const Bitboard enemy = board.occupancy[enemy_color];
-  const Bitboard occ = board.occupancy[friendly_color] | board.occupancy[enemy_color];
+  const Bitboard friendly = board.getOccupancy(friendly_color);
+  const Bitboard enemy = board.getOccupancy(enemy_color);
+  const Bitboard occ = friendly | enemy;
   const Bitboard empty = ~occ;
 
-  // Helper lambda to test if a move is legal
-  auto is_legal = [&](Square from, Square to) -> bool {
+  // Helper lambda to test if a move is legal by making it on a temporary board
+  auto is_legal = [&](const Move& m) -> bool {
     Board tmp = board;
-    tmp.makeMove(Move(from, to));
+    tmp.makeMove(m);
     return !tmp.is_in_check(friendly_color);
   };
 
-  // Helper lambda to add moves from a target bitboard
-  auto add_moves = [&](Square from, Bitboard targets, bool check_legality) {
-    while (targets) {
-      Square to = static_cast<Square>(__builtin_ctzll(targets));
-      if (!check_legality || is_legal(from, to)) {
-        moves[n_moves++] = Move(from, to);
-      }
-      targets &= targets - 1;
-    }
-  };
-
-  // Compute enemy attack map (for king moves)
-  Bitboard enemy_attacks = 0;
-  for (size_t pt = PAWN; pt <= KING; ++pt) {
-    Bitboard bb = board.pieces[enemy_color][pt];
-    while (bb) {
-      Square sq = static_cast<Square>(__builtin_ctzll(bb));
-      switch (pt) {
-        case PAWN:
-          enemy_attacks |= Bitboards::pawn_attacks(sq, enemy_color, enemy);
-          break;
-        case KNIGHT:
-          enemy_attacks |= Bitboards::knight_attacks(sq);
-          break;
-        case BISHOP:
-          enemy_attacks |= Bitboards::bishop_attacks(sq, occ);
-          break;
-        case ROOK:
-          enemy_attacks |= Bitboards::rook_attacks(sq, occ);
-          break;
-        case QUEEN:
-          enemy_attacks |= Bitboards::queen_attacks(sq, occ);
-          break;
-        case KING:
-          enemy_attacks |= Bitboards::king_attacks(sq);
-          break;
-      }
-      bb &= bb - 1;
-    }
-  }
-
   // Generate moves for each piece type
   for (size_t pt = PAWN; pt <= KING; ++pt) {
-    Bitboard bb = board.pieces[friendly_color][pt];
+    Bitboard bb = board.getPieceBitboard(friendly_color, static_cast<Piece>(pt));
 
     while (bb) {
       Square from = static_cast<Square>(__builtin_ctzll(bb));
@@ -84,157 +42,134 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
 
       switch (pt) {
         case PAWN: {
-          targets = Bitboards::pawn_moves(from, friendly_color, empty);
-          targets |= Bitboards::pawn_attacks(from, friendly_color, enemy);
-
-          if (board.enPassant != NO_SQUARE) {
-            Bitboard ep_sq = Bitboards::square_bb(board.enPassant);
-            Bitboard ep_attacks = Bitboards::pawn_attacks_mask(from, friendly_color);
-            if (ep_attacks & ep_sq) targets |= ep_sq;
+          // --- Pawn pushes ---
+          const uint8_t promotion_rank = (friendly_color == WHITE) ? 7 : 0;
+          Bitboard pushes = Bitboards::pawn_moves(from, friendly_color, empty);
+          while (pushes) {
+            Square to = static_cast<Square>(__builtin_ctzll(pushes));
+            if (Bitboards::rank_of(to) == promotion_rank) {
+              if (is_legal(Move(from, to, QUEEN))) moves[n_moves++] = Move(from, to, QUEEN);
+              if (is_legal(Move(from, to, ROOK))) moves[n_moves++] = Move(from, to, ROOK);
+              if (is_legal(Move(from, to, BISHOP))) moves[n_moves++] = Move(from, to, BISHOP);
+              if (is_legal(Move(from, to, KNIGHT))) moves[n_moves++] = Move(from, to, KNIGHT);
+            } else {
+              Move m = Move(from, to);
+              if (is_legal(m)) moves[n_moves++] = m;
+            }
+            pushes &= pushes - 1;
           }
 
-          add_moves(from, targets, true);
+          // --- Pawn captures ---
+          Bitboard attacks = Bitboards::pawn_attacks(from, friendly_color, enemy);
+          while (attacks) {
+            Square to = static_cast<Square>(__builtin_ctzll(attacks));
+            if (Bitboards::rank_of(to) == promotion_rank) {
+              if (is_legal(Move(from, to, QUEEN))) moves[n_moves++] = Move(from, to, QUEEN);
+              if (is_legal(Move(from, to, ROOK))) moves[n_moves++] = Move(from, to, ROOK);
+              if (is_legal(Move(from, to, BISHOP))) moves[n_moves++] = Move(from, to, BISHOP);
+              if (is_legal(Move(from, to, KNIGHT))) moves[n_moves++] = Move(from, to, KNIGHT);
+            } else {
+              Move m = Move(from, to);
+              if (is_legal(m)) moves[n_moves++] = m;
+            }
+            attacks &= attacks - 1;
+          }
+
+          // --- En passant ---
+          if (board.getEnPassant() != NO_SQUARE) {
+            if (Bitboards::pawn_attacks_mask(from, friendly_color) &
+                Bitboards::square_bb(board.getEnPassant())) {
+              Move m = Move(from, board.getEnPassant(), EN_PASSANT);
+              if (is_legal(m)) {
+                moves[n_moves++] = m;
+              }
+            }
+          }
           break;
         }
-        case KNIGHT:
+        case KNIGHT: {
           targets = Bitboards::knight_moves(from, friendly);
-          add_moves(from, targets, true);
+          while (targets) {
+            Square to = static_cast<Square>(__builtin_ctzll(targets));
+            Move m = Move(from, to);
+            if (is_legal(m)) moves[n_moves++] = m;
+            targets &= targets - 1;
+          }
           break;
-        case BISHOP:
+        }
+        case BISHOP: {
           targets = Bitboards::bishop_moves(from, occ, friendly);
-          add_moves(from, targets, true);
+          while (targets) {
+            Square to = static_cast<Square>(__builtin_ctzll(targets));
+            Move m = Move(from, to);
+            if (is_legal(m)) moves[n_moves++] = m;
+            targets &= targets - 1;
+          }
           break;
-        case ROOK:
+        }
+        case ROOK: {
           targets = Bitboards::rook_moves(from, occ, friendly);
-          add_moves(from, targets, true);
+          while (targets) {
+            Square to = static_cast<Square>(__builtin_ctzll(targets));
+            Move m = Move(from, to);
+            if (is_legal(m)) moves[n_moves++] = m;
+            targets &= targets - 1;
+          }
           break;
-        case QUEEN:
+        }
+        case QUEEN: {
           targets = Bitboards::queen_moves(from, occ, friendly);
-          add_moves(from, targets, true);
+          while (targets) {
+            Square to = static_cast<Square>(__builtin_ctzll(targets));
+            Move m = Move(from, to);
+            if (is_legal(m)) moves[n_moves++] = m;
+            targets &= targets - 1;
+          }
           break;
-        case KING:
-          // King can't move into check
-          targets = Bitboards::king_moves(from, friendly) & ~enemy_attacks;
-          add_moves(from, targets, false);
-          break;
-      }
+        }
+        case KING: {
+          targets = Bitboards::king_moves(from, friendly);
+          while (targets) {
+            Square to = static_cast<Square>(__builtin_ctzll(targets));
+            Move m = Move(from, to);
+            if (is_legal(m)) moves[n_moves++] = m;
+            targets &= targets - 1;
+          }
 
+          // Castling
+          CastlingRights cr = board.getCastlingRights();
+          if (friendly_color == WHITE) {
+            if (cr.whiteKingside && (occ & Bitboards::WK_EMPTY) == 0 && !board.is_in_check(WHITE)) {
+              if (!board.attacks_to(F1, enemy_color) && !board.attacks_to(G1, enemy_color)) {
+                moves[n_moves++] = Move(E1, G1, CASTLING);
+              }
+            }
+            if (cr.whiteQueenside && (occ & Bitboards::WQ_EMPTY) == 0 &&
+                !board.is_in_check(WHITE)) {
+              if (!board.attacks_to(D1, enemy_color) && !board.attacks_to(C1, enemy_color)) {
+                moves[n_moves++] = Move(E1, C1, CASTLING);
+              }
+            }
+          } else {  // BLACK
+            if (cr.blackKingside && (occ & Bitboards::BK_EMPTY) == 0 && !board.is_in_check(BLACK)) {
+              if (!board.attacks_to(F8, enemy_color) && !board.attacks_to(G8, enemy_color)) {
+                moves[n_moves++] = Move(E8, G8, CASTLING);
+              }
+            }
+            if (cr.blackQueenside && (occ & Bitboards::BQ_EMPTY) == 0 &&
+                !board.is_in_check(BLACK)) {
+              if (!board.attacks_to(D8, enemy_color) && !board.attacks_to(C8, enemy_color)) {
+                moves[n_moves++] = Move(E8, C8, CASTLING);
+              }
+            }
+          }
+          break;
+        }
+      }
       bb &= bb - 1;
     }
   }
-
   return n_moves;
-}
-
-void generate_pawn_moves(const Board& board, Color c, std::vector<Move>& moves) {
-  Bitboard occ = board.occupancy[WHITE] | board.occupancy[BLACK];
-  Bitboard pawns = board.pieces[c][PAWN];
-
-  while (pawns) {
-    Square from = static_cast<Square>(__builtin_ctzll(pawns));
-    Bitboard targets = Bitboards::pawn_moves(from, c, ~occ);
-
-    while (targets) {
-      Square to = static_cast<Square>(__builtin_ctzll(targets));
-      moves.push_back(Move(from, to, KNIGHT, MoveType::NORMAL));
-      targets &= targets - 1;
-    }
-
-    pawns &= pawns - 1;
-  }
-}
-
-void generate_knight_moves(const Board& board, Color c, std::vector<Move>& moves) {
-  Bitboard friendly = board.occupancy[c];
-  Bitboard knights = board.pieces[c][KNIGHT];
-
-  while (knights) {
-    Square from = static_cast<Square>(__builtin_ctzll(knights));
-    Bitboard targets = Bitboards::knight_moves(from, friendly);
-
-    while (targets) {
-      Square to = static_cast<Square>(__builtin_ctzll(targets));
-      moves.push_back(Move(from, to, KNIGHT, MoveType::NORMAL));
-      targets &= targets - 1;
-    }
-
-    knights &= knights - 1;
-  }
-}
-
-void generate_bishop_moves(const Board& board, Color c, std::vector<Move>& moves) {
-  Bitboard occ = board.occupancy[WHITE] | board.occupancy[BLACK];
-  Bitboard friendly = board.occupancy[c];
-  Bitboard bishops = board.pieces[c][BISHOP];
-
-  while (bishops) {
-    Square from = static_cast<Square>(__builtin_ctzll(bishops));
-    Bitboard targets = Bitboards::bishop_moves(from, occ, friendly);
-
-    while (targets) {
-      Square to = static_cast<Square>(__builtin_ctzll(targets));
-      moves.push_back(Move(from, to, KNIGHT, MoveType::NORMAL));
-      targets &= targets - 1;
-    }
-
-    bishops &= bishops - 1;
-  }
-}
-
-void generate_rook_moves(const Board& board, Color c, std::vector<Move>& moves) {
-  Bitboard occ = board.occupancy[WHITE] | board.occupancy[BLACK];
-  Bitboard friendly = board.occupancy[c];
-  Bitboard rooks = board.pieces[c][ROOK];
-
-  while (rooks) {
-    Square from = static_cast<Square>(__builtin_ctzll(rooks));
-    Bitboard targets = Bitboards::rook_moves(from, occ, friendly);
-
-    while (targets) {
-      Square to = static_cast<Square>(__builtin_ctzll(targets));
-      moves.push_back(Move(from, to, KNIGHT, MoveType::NORMAL));
-      targets &= targets - 1;
-    }
-
-    rooks &= rooks - 1;
-  }
-}
-
-void generate_queen_moves(const Board& board, Color c, std::vector<Move>& moves) {
-  Bitboard occ = board.occupancy[WHITE] | board.occupancy[BLACK];
-  Bitboard friendly = board.occupancy[c];
-  Bitboard queens = board.pieces[c][QUEEN];
-
-  while (queens) {
-    Square from = static_cast<Square>(__builtin_ctzll(queens));
-    Bitboard targets = Bitboards::queen_moves(from, occ, friendly);
-
-    while (targets) {
-      Square to = static_cast<Square>(__builtin_ctzll(targets));
-      moves.push_back(Move(from, to, KNIGHT, MoveType::NORMAL));
-      targets &= targets - 1;
-    }
-
-    queens &= queens - 1;
-  }
-}
-
-void generate_king_moves(const Board& board, Color c, std::vector<Move>& moves) {
-  Bitboard friendly = board.occupancy[c];
-  Bitboard kings = board.pieces[c][KING];
-
-  while (kings) {
-    Square from = static_cast<Square>(__builtin_ctzll(kings));
-    Bitboard targets = Bitboards::king_moves(from, friendly);
-
-    while (targets) {
-      Square to = static_cast<Square>(__builtin_ctzll(targets));
-      moves.push_back(Move(from, to, KNIGHT, MoveType::NORMAL));
-      targets &= targets - 1;
-    }
-
-    kings &= kings - 1;
-  }
 }
 
 }  // namespace MoveGen

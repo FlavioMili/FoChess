@@ -106,8 +106,7 @@ Bitboard Board::attacks_to(Square sq, Color attacker_color) const {
 
       switch (piece) {
         case PAWN:
-          attacks =
-              Bitboards::pawn_attacks(from, attacker_color, occupancy[BLACK - attacker_color]);
+          attacks = Bitboards::pawn_attacks_mask(from, attacker_color);
           break;
         case KNIGHT:
           attacks = Bitboards::knight_attacks(from);
@@ -260,21 +259,21 @@ void Board::makeMove(const Move& m) {
       castling.blackKingside = castling.blackQueenside = false;
     }
   } else if (pt == ROOK) {
-    if (from == 56)
-      castling.whiteQueenside = false;  // A1
-    else if (from == 63)
-      castling.whiteKingside = false;  // H1
-    else if (from == 0)
-      castling.blackQueenside = false;  // A8
-    else if (from == 7)
-      castling.blackKingside = false;  // H8
+    if (from == Square::A1)
+      castling.whiteQueenside = false;
+    else if (from == Square::H1)
+      castling.whiteKingside = false;
+    else if (from == Square::A8)
+      castling.blackQueenside = false;
+    else if (from == Square::H8)
+      castling.blackKingside = false;
   }
 
   if (pt == PAWN) {
-    if (us == WHITE && to - from == 16) {
-      enPassant = Square(from + 8);
-    } else if (us == BLACK && from - to == 16) {
-      enPassant = Square(from - 8);
+    if (us == WHITE && to == Bitboards::up(Bitboards::up(from))) {
+      enPassant = Bitboards::up(from);
+    } else if (us == BLACK && to == Bitboards::down(Bitboards::down(from))) {
+      enPassant = Bitboards::down(from);
     }
   }
 

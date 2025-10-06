@@ -51,6 +51,19 @@ inline constexpr uint8_t rank_of(Square sq) noexcept {
   return static_cast<uint8_t>(7 - (static_cast<int>(sq) / 8));
 }
 
+// White castling
+constexpr Bitboard WK_EMPTY = square_bb(F1) | square_bb(G1);
+constexpr Bitboard WK_SAFE  = square_bb(E1) | square_bb(F1) | square_bb(G1);
+constexpr Bitboard WQ_EMPTY = square_bb(B1) | square_bb(C1) | square_bb(D1);
+constexpr Bitboard WQ_SAFE  = square_bb(E1) | square_bb(D1) | square_bb(C1);
+
+// Black castling
+constexpr Bitboard BK_EMPTY = square_bb(F8) | square_bb(G8);
+constexpr Bitboard BK_SAFE  = square_bb(E8) | square_bb(F8) | square_bb(G8);
+constexpr Bitboard BQ_EMPTY = square_bb(B8) | square_bb(C8) | square_bb(D8);
+constexpr Bitboard BQ_SAFE  = square_bb(E8) | square_bb(D8) | square_bb(C8);
+
+
 inline Square up(Square sq) {
   return Square(int(sq) - 8);
 }

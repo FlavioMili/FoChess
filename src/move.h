@@ -11,9 +11,9 @@
 
 enum MoveType : uint8_t { 
   NORMAL = 0,
-  PROMOTION = 1 << 2,
-  EN_PASSANT = 2 << 2,
-  CASTLING = 3 << 2
+  PROMOTION = 1,
+  EN_PASSANT = 2,
+  CASTLING = 3
 };
 
 // This class was originally very similar to the one Stockfish implemented
@@ -45,12 +45,19 @@ enum MoveType : uint8_t {
 
 /*
  * Move Class
-*/
+ */
 class Move {
  public:
   constexpr Move() = default;
-  constexpr Move(Square from, Square to, Piece pt = KNIGHT, MoveType type = MoveType::NORMAL)
-      : move(static_cast<uint16_t>((type) | ((pt - KNIGHT) << 12) | (from << 6) | to)) {}
+
+  // Constructor for Normal, Castling, and En Passant moves
+  constexpr Move(Square from, Square to, MoveType type = NORMAL)
+      : move(static_cast<uint16_t>((static_cast<uint16_t>(type) << 14) | (from << 6) | to)) {}
+
+  // Constructor for Promotion moves
+  constexpr Move(Square from, Square to, Piece promotion_piece)
+      : move(static_cast<uint16_t>((static_cast<uint16_t>(PROMOTION) << 14) |
+                                   ((promotion_piece - KNIGHT) << 12) | (from << 6) | to)) {}
 
   constexpr Square from_sq() const { return Square((move >> 6) & 0x3F); }
   constexpr Square to_sq() const { return Square(move & 0x3F); }
@@ -67,4 +74,3 @@ class Move {
   constexpr explicit Move(std::uint16_t m) : move(m) {}
   std::uint16_t move = 0;
 };
-

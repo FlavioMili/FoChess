@@ -11,6 +11,7 @@
 
 #ifdef DEBUG
 int captures = 0;
+int checks = 0;
 #endif
 
 size_t perft(Board& board, int depth) {
@@ -27,6 +28,9 @@ size_t perft(Board& board, int depth) {
 
 #ifdef DEBUG
     captures += copy.was_captured;
+    if (copy.is_in_check(copy.getSideToMove())) {
+      checks++;
+    }
 #endif
 
     nodes += perft(copy, depth - 1);
@@ -38,7 +42,9 @@ size_t perft(Board& board, int depth) {
 int main(int argc, char** argv) {
   int depth = argc > 1 ? std::stoi(argv[1]) : 3;
   std::string startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
-  Board board = FEN::parse(startFEN);
+  std::string secondFEN = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - ";
+  std::string selectedFEN = argc > 2 ? argv[2] : startFEN;
+  Board board = FEN::parse(selectedFEN);
 
   // Generate root moves once
   std::array<Move, MAX_MOVES> rootMoves;
@@ -53,6 +59,7 @@ int main(int argc, char** argv) {
 
 #ifdef DEBUG
     int capturesBefore = captures;
+    int checksBefore = checks;
 #endif
 
     // Count nodes under this move
@@ -63,7 +70,8 @@ int main(int argc, char** argv) {
     std::cout << std::left << std::setw(6) << PrintingHelpers::move_to_str(move) << ": " << nodes;
 
 #ifdef DEBUG
-    std::cout << " (captures: " << captures - capturesBefore << ")";
+    std::cout << " (captures: " << captures - capturesBefore <<
+      ", checks: " << checks - checksBefore << ")";
 #endif
 
     std::cout << '\n';
@@ -72,6 +80,7 @@ int main(int argc, char** argv) {
   std::cout << "\nTotal nodes: " << totalNodes << "\n";
 #ifdef DEBUG
   std::cout << "Total captures: " << captures << "\n";
+  std::cout << "Total checks: " << checks << "\n";
 #endif
 
   return 0;
