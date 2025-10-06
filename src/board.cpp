@@ -95,43 +95,19 @@ void Board::updateOccupancy() {
 }
 
 Bitboard Board::attacks_to(Square sq, Color attacker_color) const {
+  const Bitboard occ = occupancy[WHITE] | occupancy[BLACK];
+  const Bitboard target_bb = Bitboards::square_bb(sq);
   Bitboard attackers = 0;
-  Bitboard occ = occupancy[WHITE] | occupancy[BLACK];
 
-  for (size_t piece = PAWN; piece <= KING; ++piece) {
-    Bitboard bb = pieces[attacker_color][piece];
-    while (bb) {
-      Square from = static_cast<Square>(__builtin_ctzll(bb));
-      Bitboard attacks = 0;
+  attackers |= Bitboards::pawn_attacks_mask(sq, static_cast<Color>(BLACK - attacker_color)) &
+               pieces[attacker_color][PAWN];
+  attackers |= Bitboards::knight_attacks(sq) & pieces[attacker_color][KNIGHT];
+  attackers |= Bitboards::king_attacks(sq) & pieces[attacker_color][KING];
+  attackers |= Bitboards::bishop_attacks(sq, occ) &
+               (pieces[attacker_color][BISHOP] | pieces[attacker_color][QUEEN]);
+  attackers |= Bitboards::rook_attacks(sq, occ) &
+               (pieces[attacker_color][ROOK] | pieces[attacker_color][QUEEN]);
 
-      switch (piece) {
-        case PAWN:
-          attacks = Bitboards::pawn_attacks_mask(from, attacker_color);
-          break;
-        case KNIGHT:
-          attacks = Bitboards::knight_attacks(from);
-          break;
-        case BISHOP:
-          attacks = Bitboards::bishop_attacks(from, occ);
-          break;
-        case ROOK:
-          attacks = Bitboards::rook_attacks(from, occ);
-          break;
-        case QUEEN:
-          attacks = Bitboards::queen_attacks(from, occ);
-          break;
-        case KING:
-          attacks = Bitboards::king_attacks(from);
-          break;
-      }
-
-      if (attacks & Bitboards::square_bb(sq)) {
-        attackers |= Bitboards::square_bb(from);
-      }
-
-      bb &= bb - 1;
-    }
-  }
   return attackers;
 }
 
@@ -182,7 +158,6 @@ void Board::makeMove(const Move& m) {
   // Clear en passant (will be set again if this is a double pawn push)
   enPassant = NO_SQUARE;
 
-
   // Handle captures (remove captured piece)
 #ifdef DEBUG
   was_captured = false;
@@ -204,7 +179,7 @@ void Board::makeMove(const Move& m) {
         castling.blackKingside = false;
     }
 #ifdef DEBUG
-      was_captured = true;
+    was_captured = true;
 #endif
   }
 
