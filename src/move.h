@@ -5,6 +5,8 @@
 //  Read the LICENSE file in the project root please.
 // -----------------------------------------------------------------------------
 
+#pragma once
+
 #include "types.h"
 
 enum MoveType : uint8_t { 

@@ -8,7 +8,6 @@
 #include "board.h"
 
 #include <cstddef>
-#include <iostream>
 
 #include "types.h"
 
@@ -156,4 +155,111 @@ Piece Board::piece_on(Square sq) const {
     }
   }
   return NO_PIECE;
+}
+
+void Board::makeMove(const Move& m) {
+  Square from = m.from_sq();
+  Square to = m.to_sq();
+  Color us = sideToMove;
+  Color them = Color(BLACK - us);
+  Piece pt = piece_on(from);
+  
+  // Update half-move clock (reset on pawn move or capture)
+  if (pt == PAWN || (occupancy[them] & Bitboards::square_bb(to))) {
+    halfMoveClock = 0;
+  } else {
+    halfMoveClock++;
+  }
+
+  // Clear en passant (will be set again if this is a double pawn push)
+  enPassant = NO_SQUARE;
+
+  // Handle captures (remove captured piece)
+  if (occupancy[them] & Bitboards::square_bb(to)) {
+    Piece captured = piece_on(to);
+    pieces[them][captured] &= ~Bitboards::square_bb(to);
+    
+    // Update castling rights if rook captured
+    // Bit 0 = A8, Bit 7 = H8, Bit 56 = A1, Bit 63 = H1
+    if (captured == ROOK) {
+      if (to == 56) castling.whiteQueenside = false;       // A1
+      else if (to == 63) castling.whiteKingside = false;   // H1
+      else if (to == 0) castling.blackQueenside = false;   // A8
+      else if (to == 7) castling.blackKingside = false;    // H8
+    }
+  }
+
+  // Move the piece
+  pieces[us][pt] &= ~Bitboards::square_bb(from);  // Remove from source
+  pieces[us][pt] |= Bitboards::square_bb(to);     // Place at destination
+
+  // Handle special moves
+  switch (m.type()) {
+    case MoveType::NORMAL:
+      break;
+
+    case MoveType::PROMOTION:
+      // Remove pawn, add promoted piece
+      pieces[us][PAWN] &= ~Bitboards::square_bb(to);
+      pieces[us][m.promotion_type()] |= Bitboards::square_bb(to);
+      break;
+
+    case MoveType::EN_PASSANT: {
+      // Remove the captured pawn (which is not on the 'to' square)
+      // White pawns move down (increasing square numbers)
+      // Black pawns move up (decreasing square numbers)
+      Square capturedSq = (us == WHITE) ? Square(to - 8) : Square(to + 8);
+      pieces[them][PAWN] &= ~Bitboards::square_bb(capturedSq);
+      break;
+    }
+
+    case MoveType::CASTLING: {
+      // Move the rook
+      Square rookFrom, rookTo;
+      if (to > from) {  // Kingside (towards H-file)
+        rookFrom = (us == WHITE) ? Square(63) : Square(7);   // H1 : H8
+        rookTo = (us == WHITE) ? Square(61) : Square(5);     // F1 : F8
+      } else {  // Queenside (towards A-file)
+        rookFrom = (us == WHITE) ? Square(56) : Square(0);   // A1 : A8
+        rookTo = (us == WHITE) ? Square(59) : Square(3);     // D1 : D8
+      }
+      pieces[us][ROOK] &= ~Bitboards::square_bb(rookFrom);
+      pieces[us][ROOK] |= Bitboards::square_bb(rookTo);
+      break;
+    }
+  }
+
+  // Update castling rights based on piece moved
+  if (pt == KING) {
+    if (us == WHITE) {
+      castling.whiteKingside = castling.whiteQueenside = false;
+    } else {
+      castling.blackKingside = castling.blackQueenside = false;
+    }
+  } else if (pt == ROOK) {
+    if (from == 56) castling.whiteQueenside = false;       // A1
+    else if (from == 63) castling.whiteKingside = false;   // H1
+    else if (from == 0) castling.blackQueenside = false;   // A8
+    else if (from == 7) castling.blackKingside = false;    // H8
+  }
+
+  // Set en passant square for double pawn pushes
+  if (pt == PAWN) {
+    // White pawns move from rank 6 (bit 48-55) to rank 4 (bit 32-39)
+    // Black pawns move from rank 1 (bit 8-15) to rank 3 (bit 24-31)
+    if (us == WHITE && to - from == 16) {
+      enPassant = Square(from + 8);
+    } else if (us == BLACK && from - to == 16) {
+      enPassant = Square(from - 8);
+    }
+  }
+
+  // Update occupancy bitboards
+  updateOccupancy();
+
+  // Switch side to move
+  if (us == BLACK) {
+    fullMoveNumber++;
+  }
+  sideToMove = them;
 }

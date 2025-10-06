@@ -7,10 +7,10 @@
 
 #pragma once
 #include <array>
-#include <cctype>
 #include <cstdint>
 
 #include "bitboard.h"
+#include "move.h"
 #include "types.h"
 
 struct CastlingRights {
@@ -27,8 +27,7 @@ struct CastlingRights {
 
 struct Board {
   Board();
-  void printBoard() const;
-
+  Board(const Board& other) = default;
   Bitboard getPieceBitboard(Color c, Piece pt) const;
   Bitboard getOccupancy(Color c) const;
   Bitboard getAllOccupied() const;
@@ -50,6 +49,8 @@ struct Board {
   Piece piece_on(Square sq) const;
 
   Bitboard attacks_to(Square sq) const;
+
+  void makeMove(const Move& m);
 
   std::array<std::array<Bitboard, 6>, 2> pieces;  // [color][pieceType]
   std::array<Bitboard, 2> occupancy;              // white/black

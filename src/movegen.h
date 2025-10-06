@@ -10,8 +10,8 @@
 #include <cstdint>
 #include "board.h"
 #include "types.h"
-#include "move.h"
 
+#include "move.h"
 #include <vector>
 
 constexpr uint8_t MAX_MOVES = 218;

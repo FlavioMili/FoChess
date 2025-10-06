@@ -1,57 +1,45 @@
 #include <cctype>
 #include <iostream>
+
 #include "board.h"
-#include "movegen.h"
 #include "types.h"
+
+#pragma once
 
 namespace PrintingHelpers {
 
 constexpr char pieceChar(Piece pt, Color c) {
   char ch = '?';
   switch (pt) {
-    case PAWN:
-      ch = 'P';
-      break;
-    case KNIGHT:
-      ch = 'N';
-      break;
-    case BISHOP:
-      ch = 'B';
-      break;
-    case ROOK:
-      ch = 'R';
-      break;
-    case QUEEN:
-      ch = 'Q';
-      break;
-    case KING:
-      ch = 'K';
-      break;
-    default:
-      ch = '-';
-      break;
+    case PAWN: ch = 'P'; break;
+    case KNIGHT: ch = 'N'; break;
+    case BISHOP: ch = 'B'; break;
+    case ROOK: ch = 'R'; break;
+    case QUEEN: ch = 'Q'; break;
+    case KING: ch = 'K'; break;
+    default: ch = '-'; break;
   }
   if (c == BLACK) ch = static_cast<char>(std::tolower(ch));
   return ch;
 }
 
 inline void printBoard(Board board) {
+  std::cout << "\n";
   for (int rank = 7; rank >= 0; --rank) {
     std::cout << rank + 1 << "  ";
     for (int file = 0; file < 8; ++file) {
-      int sq = rank * 8 +  (7 - file);  // A8=0, H1=63
+      int sq = (7 - rank) * 8 + file;
       Bitboard mask = 1ULL << sq;
-
       char symbol = '.';
-      for (size_t c = 0; c < 2; ++c) {
-        for (size_t p = 0; p < 6; ++p) {
+
+      for (size_t c = 0; c < 2 && symbol == '.'; ++c) {
+        for (size_t p = 0; p < 6 && symbol == '.'; ++p) {
           if (board.pieces[c][p] & mask) {
             symbol = pieceChar(static_cast<Piece>(p), static_cast<Color>(c));
-            goto print_done;
           }
         }
       }
-    print_done:
+
       std::cout << symbol << ' ';
     }
     std::cout << '\n';
@@ -60,9 +48,9 @@ inline void printBoard(Board board) {
 }
 
 inline std::string square_to_str(Square sq) {
-  char file = 'a' + (sq % 8);
-  char rank = static_cast<char>('1' + (7 - (sq / 8)));  // rank 1 is bottom
-  return {file, rank};
+  int rank = 8 - (sq / 8);
+  int file = sq % 8;
+  return {char('a' + file), char('0' + rank)};
 }
 
 inline std::string move_to_str(const Move& m, const Board& board) {
@@ -78,25 +66,14 @@ inline std::string move_to_str(const Move& m, const Board& board) {
 
   if (m.type() == PROMOTION) {
     switch (m.promotion_type()) {
-      case QUEEN:
-        s += "=Q";
-        break;
-      case ROOK:
-        s += "=R";
-        break;
-      case BISHOP:
-        s += "=B";
-        break;
-      case KNIGHT:
-        s += "=N";
-        break;
-      default:
-        break;
+      case QUEEN: s += "=Q"; break;
+      case ROOK: s += "=R"; break;
+      case BISHOP: s += "=B"; break;
+      case KNIGHT: s += "=N"; break;
+      default: break;
     }
   }
-
   return s;
 }
 
-} // namespace PrintingHelpers
-
+}  // namespace PrintingHelpers
