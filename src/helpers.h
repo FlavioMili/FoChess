@@ -48,6 +48,7 @@ inline void printBoard(Board board) {
 }
 
 inline std::string square_to_str(Square sq) {
+  if (sq == Square::NO_SQUARE) return "NO_SQUARE";
   int rank = 8 - (sq / 8);
   int file = sq % 8;
   return {char('a' + file), char('0' + rank)};

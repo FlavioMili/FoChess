@@ -1,34 +1,45 @@
 #include <array>
 #include <cstddef>
 #include <iostream>
+#include <string>
 
 #include "board.h"
 #include "fen.h"
 #include "movegen.h"
 
-size_t perft(int depth, Board& board) {
-  if (depth == 0) return 1;
+#ifdef DEBUG
+int captures = 0;
+#endif
 
-  std::array<Move, MAX_MOVES> moves;
+uint64_t perft(Board& board, int depth) {
+    if (depth == 0) return 1;
 
-  size_t nodes = 0;
-  size_t n_moves = MoveGen::generate_all(board, moves);
+    std::array<Move, MAX_MOVES> moves;
+    size_t n = MoveGen::generate_all(board, moves);
+    uint64_t nodes = 0;
 
-  if (depth == 1) return moves.size();
+    for (size_t i = 0; i < n; ++i) {
+        Move move = moves[i];
+        Board copy = board;
+        copy.makeMove(move);
 
-  for (size_t i = 0; i < n_moves; ++i) {
-    Board copy = board;
-    copy.makeMove(moves[i]);
-    nodes += perft(depth - 1, copy);
-  }
+#ifdef DEBUG
+    captures+= copy.was_captured;
+#endif
 
-  return nodes;
+        nodes += perft(copy, depth - 1);
+    }
+    return nodes;
 }
 
-int main() {
+int main(int argc, char** argv) {
+  int n = argc > 1 ? std::stoi(argv[1]) : 3;
   std::string startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
   Board board = FEN::parse(startFEN);
-  size_t nodes = perft(7, board);
+  size_t nodes = perft(board, n);
   std::cout << "nodes: " << nodes << "\n";
+#ifdef DEBUG
+ std::cout << "number of captures: " << captures << "\n";
+#endif
   return 0;
 }

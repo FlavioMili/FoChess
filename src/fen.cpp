@@ -86,7 +86,7 @@ Board parse(const std::string& fen) {
     } else {
       Piece pt = charToPiece(c);
       Color col = charToColor(c);
-      board.pieces[col][pt] |= (1ULL << (63 - sq));
+      board.pieces[col][pt] |= (1ULL << sq);
       ++sq;
     }
   }
@@ -137,7 +137,7 @@ std::string to_fen(const Board& board) {
     int empty = 0;
     for (int file = 0; file < 8; ++file) {
       int sq = (7 - rank) * 8 + file; 
-      Bitboard mask = 1ULL << (63 - sq);
+      Bitboard mask = 1ULL << sq;
       bool found = false;
       for (size_t c = 0; c < 2; ++c) {
         for (size_t p = 0; p < 6; ++p) {

@@ -16,8 +16,8 @@ namespace Bitboards {
 
 // Positions on board
 constexpr Bitboard CENTER = 0x0000001818000000ULL;
-constexpr Bitboard KING_SIDE = 0x00000000000000FEULL;
-constexpr Bitboard QUEEN_SIDE = 0x00000000000000FFULL;
+constexpr Bitboard QUEEN_SIDE = 0x0F0F0F0F0F0F0F0FULL;
+constexpr Bitboard KING_SIDE = 0xF0F0F0F0F0F0F0F0ULL;
 
 // Files
 constexpr Bitboard FILE_A = 0x0101010101010101ULL;
@@ -48,14 +48,14 @@ inline constexpr uint8_t file_of(Square sq) noexcept {
 }
 
 inline constexpr uint8_t rank_of(Square sq) noexcept {
-  return static_cast<uint8_t>(sq / 8);
+  return static_cast<uint8_t>(7 - (static_cast<int>(sq) / 8));
 }
 
 inline Square up(Square sq) {
-  return Square(int(sq) + 8);
+  return Square(int(sq) - 8);
 }
 inline Square down(Square sq) {
-  return Square(int(sq) - 8);
+  return Square(int(sq) + 8);
 }
 inline Square left(Square sq) {
   return Square(int(sq) - 1);
@@ -76,10 +76,10 @@ inline Square down_right(Square sq) {
   return down(right(sq));
 }
 inline Bitboard bb_up(Bitboard bb) {
-  return bb << 8;
+  return bb >> 8;
 }
 inline Bitboard bb_down(Bitboard bb) {
-  return bb >> 8;
+  return bb << 8;
 }
 inline Bitboard bb_left(Bitboard bb) {
   return (bb >> 1) & ~FILE_H;
@@ -122,22 +122,19 @@ inline Bitboard pawn_moves(Square sq, Color c, Bitboard empty, Bitboard friendly
     Bitboard one = bb_up(bb) & empty;
     if (one) {
       moves |= one;
-      if (rank_of(sq) == 1)
-        moves |= bb_up(one) & empty;
+      if (rank_of(sq) == 1) moves |= bb_up(one) & empty;
     }
     moves |= pawn_attacks(sq, WHITE, enemies);
   } else {
     Bitboard one = bb_down(bb) & empty;
     if (one) {
       moves |= one;
-      if (rank_of(sq) == 6)
-        moves |= bb_down(one) & empty;
+      if (rank_of(sq) == 6) moves |= bb_down(one) & empty;
     }
     moves |= pawn_attacks(sq, BLACK, enemies);
   }
   return moves;
 }
-
 
 inline Bitboard knight_attacks(Square sq) {
   Bitboard bb = square_bb(sq);
@@ -146,8 +143,8 @@ inline Bitboard knight_attacks(Square sq) {
   Bitboard r1 = (bb << 1) & ~FILE_A;
   Bitboard r2 = (bb << 2) & ~(FILE_A | (FILE_A << 1));
 
-  return (l2 << 8) | (l2 >> 8) | (r2 << 8) | (r2 >> 8) |
-  (l1 << 16) | (l1 >> 16) | (r1 << 16) | (r1 >> 16);
+  return (l2 << 8) | (l2 >> 8) | (r2 << 8) | (r2 >> 8) | (l1 << 16) | (l1 >> 16) | (r1 << 16) |
+         (r1 >> 16);
 }
 
 inline Bitboard knight_moves(Square sq, Bitboard friendly) {
@@ -156,9 +153,8 @@ inline Bitboard knight_moves(Square sq, Bitboard friendly) {
 
 inline Bitboard king_attacks(Square sq) {
   Bitboard bb = square_bb(sq);
-  return bb_up(bb) | bb_down(bb) | bb_left(bb) | bb_right(bb) |
-  bb_up_left(bb) | bb_up_right(bb) |
-  bb_down_left(bb) | bb_down_right(bb);
+  return bb_up(bb) | bb_down(bb) | bb_left(bb) | bb_right(bb) | bb_up_left(bb) | bb_up_right(bb) |
+         bb_down_left(bb) | bb_down_right(bb);
 }
 
 inline Bitboard king_moves(Square sq, Bitboard friendly) {

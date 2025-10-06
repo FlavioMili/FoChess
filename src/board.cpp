@@ -11,7 +11,6 @@
 
 #include "types.h"
 
-
 // ---------------- Constructor ----------------
 Board::Board()
     : occupancy{0, 0},
@@ -94,47 +93,56 @@ void Board::updateOccupancy() {
   }
 }
 
-
-Bitboard Board::attacks_to(Square sq) const {
+Bitboard Board::attacks_to(Square sq, Color attacker_color) const {
   Bitboard attackers = 0;
   Bitboard occ = occupancy[WHITE] | occupancy[BLACK];
 
-  for (size_t color = WHITE; color <= BLACK; ++color) {
-    for (size_t piece = PAWN; piece <= KING; ++piece) {
-      Bitboard bb = pieces[color][piece];
-      while (bb) {
-        Square from = static_cast<Square>(__builtin_ctzll(bb));  // index of LSB
-        Bitboard attacks = 0;
+  for (size_t piece = PAWN; piece <= KING; ++piece) {
+    Bitboard bb = pieces[attacker_color][piece];
+    while (bb) {
+      Square from = static_cast<Square>(__builtin_ctzll(bb));
+      Bitboard attacks = 0;
 
-        switch (piece) {
-          /* The third field takes as input enemies so that way we can
-           * get enemies with this simple trick*/
-          case PAWN:
-            attacks = Bitboards::pawn_attacks(from, static_cast<Color>(color),
-                                              occupancy[Color::BLACK - color]);
-            break;
-          case KNIGHT:
-            attacks = Bitboards::knight_attacks(from); break;
-          case BISHOP:
-            attacks = Bitboards::bishop_attacks(from, occ); break;
-          case ROOK:
-            attacks = Bitboards::rook_attacks(from, occ); break;
-          case QUEEN:
-            attacks = Bitboards::queen_attacks(from, occ); break;
-          case KING:
-            attacks = Bitboards::king_attacks(from); break;
-        }
-
-        if (attacks & Bitboards::square_bb(sq)) {
-          attackers |= Bitboards::square_bb(from);
-        }
-
-        bb &= bb - 1;  // clear LSB
+      switch (piece) {
+        case PAWN:
+          attacks =
+              Bitboards::pawn_attacks(from, attacker_color, occupancy[BLACK - attacker_color]);
+          break;
+        case KNIGHT:
+          attacks = Bitboards::knight_attacks(from);
+          break;
+        case BISHOP:
+          attacks = Bitboards::bishop_attacks(from, occ);
+          break;
+        case ROOK:
+          attacks = Bitboards::rook_attacks(from, occ);
+          break;
+        case QUEEN:
+          attacks = Bitboards::queen_attacks(from, occ);
+          break;
+        case KING:
+          attacks = Bitboards::king_attacks(from);
+          break;
       }
+
+      if (attacks & Bitboards::square_bb(sq)) {
+        attackers |= Bitboards::square_bb(from);
+      }
+
+      bb &= bb - 1;
     }
   }
-
   return attackers;
+}
+
+bool Board::is_in_check(Color c) const {
+  Bitboard king_bb = pieces[c][KING];
+  if (!king_bb) return false;
+
+  Square kingSquare = static_cast<Square>(__builtin_ctzll(king_bb));
+  Color enemy = Color(BLACK - c);
+
+  return attacks_to(kingSquare, enemy) != 0;
 }
 
 Color Board::color_on(Square sq) const {
@@ -163,7 +171,7 @@ void Board::makeMove(const Move& m) {
   Color us = sideToMove;
   Color them = Color(BLACK - us);
   Piece pt = piece_on(from);
-  
+
   // Update half-move clock (reset on pawn move or capture)
   if (pt == PAWN || (occupancy[them] & Bitboards::square_bb(to))) {
     halfMoveClock = 0;
@@ -174,19 +182,30 @@ void Board::makeMove(const Move& m) {
   // Clear en passant (will be set again if this is a double pawn push)
   enPassant = NO_SQUARE;
 
+
   // Handle captures (remove captured piece)
+#ifdef DEBUG
+  was_captured = false;
+#endif
   if (occupancy[them] & Bitboards::square_bb(to)) {
     Piece captured = piece_on(to);
     pieces[them][captured] &= ~Bitboards::square_bb(to);
-    
+
     // Update castling rights if rook captured
     // Bit 0 = A8, Bit 7 = H8, Bit 56 = A1, Bit 63 = H1
     if (captured == ROOK) {
-      if (to == 56) castling.whiteQueenside = false;       // A1
-      else if (to == 63) castling.whiteKingside = false;   // H1
-      else if (to == 0) castling.blackQueenside = false;   // A8
-      else if (to == 7) castling.blackKingside = false;    // H8
+      if (to == 56)
+        castling.whiteQueenside = false;
+      else if (to == 63)
+        castling.whiteKingside = false;
+      else if (to == 0)
+        castling.blackQueenside = false;
+      else if (to == 7)
+        castling.blackKingside = false;
     }
+#ifdef DEBUG
+      was_captured = true;
+#endif
   }
 
   // Move the piece
@@ -216,12 +235,12 @@ void Board::makeMove(const Move& m) {
     case MoveType::CASTLING: {
       // Move the rook
       Square rookFrom, rookTo;
-      if (to > from) {  // Kingside (towards H-file)
-        rookFrom = (us == WHITE) ? Square(63) : Square(7);   // H1 : H8
-        rookTo = (us == WHITE) ? Square(61) : Square(5);     // F1 : F8
-      } else {  // Queenside (towards A-file)
-        rookFrom = (us == WHITE) ? Square(56) : Square(0);   // A1 : A8
-        rookTo = (us == WHITE) ? Square(59) : Square(3);     // D1 : D8
+      if (to > from) {                                      // Kingside (towards H-file)
+        rookFrom = (us == WHITE) ? Square(63) : Square(7);  // H1 : H8
+        rookTo = (us == WHITE) ? Square(61) : Square(5);    // F1 : F8
+      } else {                                              // Queenside (towards A-file)
+        rookFrom = (us == WHITE) ? Square(56) : Square(0);  // A1 : A8
+        rookTo = (us == WHITE) ? Square(59) : Square(3);    // D1 : D8
       }
       pieces[us][ROOK] &= ~Bitboards::square_bb(rookFrom);
       pieces[us][ROOK] |= Bitboards::square_bb(rookTo);
@@ -237,16 +256,17 @@ void Board::makeMove(const Move& m) {
       castling.blackKingside = castling.blackQueenside = false;
     }
   } else if (pt == ROOK) {
-    if (from == 56) castling.whiteQueenside = false;       // A1
-    else if (from == 63) castling.whiteKingside = false;   // H1
-    else if (from == 0) castling.blackQueenside = false;   // A8
-    else if (from == 7) castling.blackKingside = false;    // H8
+    if (from == 56)
+      castling.whiteQueenside = false;  // A1
+    else if (from == 63)
+      castling.whiteKingside = false;  // H1
+    else if (from == 0)
+      castling.blackQueenside = false;  // A8
+    else if (from == 7)
+      castling.blackKingside = false;  // H8
   }
 
-  // Set en passant square for double pawn pushes
   if (pt == PAWN) {
-    // White pawns move from rank 6 (bit 48-55) to rank 4 (bit 32-39)
-    // Black pawns move from rank 1 (bit 8-15) to rank 3 (bit 24-31)
     if (us == WHITE && to - from == 16) {
       enPassant = Square(from + 8);
     } else if (us == BLACK && from - to == 16) {
@@ -254,10 +274,8 @@ void Board::makeMove(const Move& m) {
     }
   }
 
-  // Update occupancy bitboards
   updateOccupancy();
 
-  // Switch side to move
   if (us == BLACK) {
     fullMoveNumber++;
   }
