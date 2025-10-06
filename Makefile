@@ -56,8 +56,27 @@ $(RELEASE_DIR)/%: $(TEST_DIR)/%.cpp $(RELEASE_OBJ)
 $(RELEASE_DIR):
 	mkdir -p $(RELEASE_DIR)
 
+# ---------------- Performance build ----------------
+PERF_DIR := $(BUILD_DIR)/perf
+PERF_FLAGS := $(CXX_BASE_FLAGS)
+PERF_FLAGS += -O3 -march=native -DNDEBUG -flto -fno-rtti
+
+PERF_OBJ := $(patsubst $(SRC_DIR)/%.cpp,$(PERF_DIR)/%.o,$(SRC))
+PERF_BIN := $(patsubst $(TEST_DIR)/%.cpp,$(PERF_DIR)/%,$(TEST_SRC))
+
+perf: $(PERF_DIR) $(PERF_BIN)
+
+$(PERF_DIR)/%.o: $(SRC_DIR)/%.cpp
+	$(CXX) $(PERF_FLAGS) -c $< -o $@
+
+$(PERF_DIR)/%: $(TEST_DIR)/%.cpp $(PERF_OBJ)
+	$(CXX) $(PERF_FLAGS) $^ -o $@
+
+$(PERF_DIR):
+	mkdir -p $(PERF_DIR)
+
 # ---------------- Clean ----------------
 clean:
 	rm -rf $(BUILD_DIR)
 
-.PHONY: all debug release clean
+.PHONY: all debug release clean perf

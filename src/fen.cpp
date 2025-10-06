@@ -11,6 +11,7 @@
 #include <sstream>
 
 #include "board.h"
+#include "types.h"
 
 namespace {
 

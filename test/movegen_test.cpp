@@ -5,17 +5,16 @@
 //  Read the LICENSE file in the project root please.
 // -----------------------------------------------------------------------------
 
-
 #include "movegen.h"
 
+#include <array>
+#include <cstddef>
 #include <iostream>
 #include <string>
-#include <vector>
 
 #include "board.h"
-#include "helpers.h"
 #include "fen.h"
-
+#include "helpers.h"
 
 void TestBoardGeneration(std::string fen) {
   Board board = FEN::parse(fen);
@@ -23,11 +22,13 @@ void TestBoardGeneration(std::string fen) {
   std::cout << "Printing parsed board:\n";
   PrintingHelpers::printBoard(board);
 
-  std::vector<Move> mg = MoveGen::generate_all(board);
+  std::array<Move, MAX_MOVES> moves;
 
-  std::cout << "\nGenerated " << mg.size() << " moves:\n";
-  for (const auto& move : mg) {
-    std::cout << PrintingHelpers::move_to_str(move, board) << "\n";
+  size_t n_moves = MoveGen::generate_all(board, moves);
+
+  std::cout << "\nGenerated " << n_moves << " moves:\n";
+  for (size_t i = 0; i < n_moves; ++i) {
+    std::cout << PrintingHelpers::move_to_str(moves[i], board) << "\n";
   }
   std::cout << "\n\n\n";
 }

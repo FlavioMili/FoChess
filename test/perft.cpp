@@ -1,24 +1,24 @@
+#include <array>
 #include <cstddef>
 #include <iostream>
-#include <vector>
 
 #include "board.h"
 #include "fen.h"
 #include "movegen.h"
 
 size_t perft(int depth, Board& board) {
-  if (depth == 0)
-    return 1;
+  if (depth == 0) return 1;
+
+  std::array<Move, MAX_MOVES> moves;
 
   size_t nodes = 0;
-  std::vector<Move> moves = MoveGen::generate_all(board);
+  size_t n_moves = MoveGen::generate_all(board, moves);
 
-  if (depth == 1)
-    return moves.size();
+  if (depth == 1) return moves.size();
 
-  for (const auto& move : moves) {
+  for (size_t i = 0; i < n_moves; ++i) {
     Board copy = board;
-    copy.makeMove(move);
+    copy.makeMove(moves[i]);
     nodes += perft(depth - 1, copy);
   }
 

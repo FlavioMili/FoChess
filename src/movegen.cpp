@@ -16,10 +16,8 @@
 
 namespace MoveGen {
 
-std::vector<Move> generate_all(const Board& board) {
-  std::vector<Move> move_list;
-  move_list.reserve(MAX_MOVES);
-
+size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
+  size_t n_moves = 0;
   const Color side = board.sideToMove;
   const Color enemy = (side == WHITE ? BLACK : WHITE);
 
@@ -57,7 +55,8 @@ std::vector<Move> generate_all(const Board& board) {
 
       while (targets) {
         Square to = static_cast<Square>(__builtin_ctzll(targets));
-        move_list.push_back(Move(from, to));
+        moves[n_moves] = Move(from, to);
+        n_moves++;
         targets &= targets - 1;
       }
 
@@ -65,7 +64,7 @@ std::vector<Move> generate_all(const Board& board) {
     }
   }
 
-  return move_list;
+  return n_moves;
 }
 
 void generate_pawn_moves(const Board& board, Color c, std::vector<Move>& moves) {
