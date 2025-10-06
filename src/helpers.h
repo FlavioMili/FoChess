@@ -54,7 +54,7 @@ inline std::string square_to_str(Square sq) {
   return {char('a' + file), char('0' + rank)};
 }
 
-inline std::string move_to_str(const Move& m, const Board& board) {
+inline std::string nice_move_to_str(const Move& m, const Board& board) {
   Piece pt = board.piece_on(m.from_sq());
   Color c = board.color_on(m.from_sq());
   char pc = PrintingHelpers::pieceChar(pt, c);
@@ -63,6 +63,24 @@ inline std::string move_to_str(const Move& m, const Board& board) {
   s += pc;                          // piece char
   s += square_to_str(m.from_sq());  // from square
   s += '-';
+  s += square_to_str(m.to_sq());  // to square
+
+  if (m.type() == PROMOTION) {
+    switch (m.promotion_type()) {
+      case QUEEN: s += "=Q"; break;
+      case ROOK: s += "=R"; break;
+      case BISHOP: s += "=B"; break;
+      case KNIGHT: s += "=N"; break;
+      default: break;
+    }
+  }
+  return s;
+}
+
+
+inline std::string move_to_str(const Move& m) {
+  std::string s;
+  s += square_to_str(m.from_sq());  // from square
   s += square_to_str(m.to_sq());  // to square
 
   if (m.type() == PROMOTION) {

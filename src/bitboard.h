@@ -113,38 +113,48 @@ inline Bitboard pawn_attacks(Square sq, Color c, Bitboard enemies) {
   return pawn_attacks_mask(sq, c) & enemies;
 }
 
-inline Bitboard pawn_moves(Square sq, Color c, Bitboard empty, Bitboard friendly) {
+inline Bitboard pawn_moves(Square sq, Color c, Bitboard empty) {
   Bitboard moves = 0;
   Bitboard bb = square_bb(sq);
-  Bitboard enemies = (~empty) & ~friendly;
 
-  if (c == WHITE) {
-    Bitboard one = bb_up(bb) & empty;
-    if (one) {
-      moves |= one;
-      if (rank_of(sq) == 1) moves |= bb_up(one) & empty;
-    }
-    moves |= pawn_attacks(sq, WHITE, enemies);
-  } else {
-    Bitboard one = bb_down(bb) & empty;
-    if (one) {
-      moves |= one;
-      if (rank_of(sq) == 6) moves |= bb_down(one) & empty;
-    }
-    moves |= pawn_attacks(sq, BLACK, enemies);
+  // TODO remove magic constants (actually just use precomputed tables)
+  const int start_rank = (c == WHITE) ? 1 : 6;
+  auto shift_forward = (c == WHITE) ? bb_up : bb_down;
+  Bitboard push_one = shift_forward(bb) & empty;
+  moves |= push_one;
+
+  if (push_one && (rank_of(sq) == start_rank)) {
+    Bitboard push_two = shift_forward(push_one) & empty;
+    moves |= push_two;
   }
   return moves;
 }
 
+// TODO make precalculated tables
 inline Bitboard knight_attacks(Square sq) {
   Bitboard bb = square_bb(sq);
-  Bitboard l1 = (bb >> 1) & ~FILE_H;
-  Bitboard l2 = (bb >> 2) & ~(FILE_H | (FILE_H >> 1));
-  Bitboard r1 = (bb << 1) & ~FILE_A;
-  Bitboard r2 = (bb << 2) & ~(FILE_A | (FILE_A << 1));
 
-  return (l2 << 8) | (l2 >> 8) | (r2 << 8) | (r2 >> 8) | (l1 << 16) | (l1 >> 16) | (r1 << 16) |
-         (r1 >> 16);
+  // Two up, one left/right
+  Bitboard u2 = bb_up(bb_up(bb));
+  Bitboard u2l = bb_left(u2);
+  Bitboard u2r = bb_right(u2);
+
+  // Two down, one left/right
+  Bitboard d2 = bb_down(bb_down(bb));
+  Bitboard d2l = bb_left(d2);
+  Bitboard d2r = bb_right(d2);
+
+  // Two left, one up/down
+  Bitboard l2 = bb_left(bb_left(bb));
+  Bitboard l2u = bb_up(l2);
+  Bitboard l2d = bb_down(l2);
+
+  // Two right, one up/down
+  Bitboard r2 = bb_right(bb_right(bb));
+  Bitboard r2u = bb_up(r2);
+  Bitboard r2d = bb_down(r2);
+
+  return u2l | u2r | d2l | d2r | l2u | l2d | r2u | r2d;
 }
 
 inline Bitboard knight_moves(Square sq, Bitboard friendly) {

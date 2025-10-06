@@ -30,7 +30,7 @@ void TestBoardGeneration(std::string fen, size_t expected_moves) {
   std::cout << "\nGenerated " << n_moves << " moves:\n";
   assert(n_moves == expected_moves);
   for (size_t i = 0; i < n_moves; ++i) {
-    std::cout << PrintingHelpers::move_to_str(moves[i], board) << "\n";
+    std::cout << PrintingHelpers::nice_move_to_str(moves[i], board) << "\n";
   }
   std::cout << "En Passant: " <<
       PrintingHelpers::square_to_str(board.getEnPassant()) << "\n\n\n";

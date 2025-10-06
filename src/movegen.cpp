@@ -18,19 +18,19 @@ namespace MoveGen {
 
 size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
   size_t n_moves = 0;
-  const Color us = board.sideToMove;
-  const Color them = (us == WHITE) ? BLACK : WHITE;
-  
-  const Bitboard occ = board.occupancy[WHITE] | board.occupancy[BLACK];
-  const Bitboard friendly = board.occupancy[us];
-  const Bitboard enemies = board.occupancy[them];
+  const Color friendly_color = board.sideToMove;
+  const Color enemy_color = static_cast<Color>(Color::BLACK - friendly_color);
+
+  const Bitboard friendly = board.occupancy[friendly_color];
+  const Bitboard enemy = board.occupancy[enemy_color];
+  const Bitboard occ = board.occupancy[friendly_color] | board.occupancy[enemy_color];
   const Bitboard empty = ~occ;
 
   // Helper lambda to test if a move is legal
   auto is_legal = [&](Square from, Square to) -> bool {
     Board tmp = board;
     tmp.makeMove(Move(from, to));
-    return !tmp.is_in_check(us);
+    return !tmp.is_in_check(friendly_color);
   };
 
   // Helper lambda to add moves from a target bitboard
@@ -47,16 +47,28 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
   // Compute enemy attack map (for king moves)
   Bitboard enemy_attacks = 0;
   for (size_t pt = PAWN; pt <= KING; ++pt) {
-    Bitboard bb = board.pieces[them][pt];
+    Bitboard bb = board.pieces[enemy_color][pt];
     while (bb) {
       Square sq = static_cast<Square>(__builtin_ctzll(bb));
       switch (pt) {
-        case PAWN:   enemy_attacks |= Bitboards::pawn_attacks_mask(sq, them); break;
-        case KNIGHT: enemy_attacks |= Bitboards::knight_attacks(sq); break;
-        case BISHOP: enemy_attacks |= Bitboards::bishop_attacks(sq, occ); break;
-        case ROOK:   enemy_attacks |= Bitboards::rook_attacks(sq, occ); break;
-        case QUEEN:  enemy_attacks |= Bitboards::queen_attacks(sq, occ); break;
-        case KING:   enemy_attacks |= Bitboards::king_attacks(sq); break;
+        case PAWN:
+          enemy_attacks |= Bitboards::pawn_attacks(sq, enemy_color, enemy);
+          break;
+        case KNIGHT:
+          enemy_attacks |= Bitboards::knight_attacks(sq);
+          break;
+        case BISHOP:
+          enemy_attacks |= Bitboards::bishop_attacks(sq, occ);
+          break;
+        case ROOK:
+          enemy_attacks |= Bitboards::rook_attacks(sq, occ);
+          break;
+        case QUEEN:
+          enemy_attacks |= Bitboards::queen_attacks(sq, occ);
+          break;
+        case KING:
+          enemy_attacks |= Bitboards::king_attacks(sq);
+          break;
       }
       bb &= bb - 1;
     }
@@ -64,22 +76,23 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
 
   // Generate moves for each piece type
   for (size_t pt = PAWN; pt <= KING; ++pt) {
-    Bitboard bb = board.pieces[us][pt];
-    
+    Bitboard bb = board.pieces[friendly_color][pt];
+
     while (bb) {
       Square from = static_cast<Square>(__builtin_ctzll(bb));
       Bitboard targets = 0;
 
       switch (pt) {
         case PAWN: {
-          targets = Bitboards::pawn_moves(from, us, empty, enemies);
-          
+          targets = Bitboards::pawn_moves(from, friendly_color, empty);
+          targets |= Bitboards::pawn_attacks(from, friendly_color, enemy);
+
           if (board.enPassant != NO_SQUARE) {
-            Bitboard ep_attacks = Bitboards::pawn_attacks_mask(from, us);
-            if (ep_attacks & Bitboards::square_bb(board.enPassant)) {
-              targets |= Bitboards::square_bb(board.enPassant);
-            }
+            Bitboard ep_sq = Bitboards::square_bb(board.enPassant);
+            Bitboard ep_attacks = Bitboards::pawn_attacks_mask(from, friendly_color);
+            if (ep_attacks & ep_sq) targets |= ep_sq;
           }
+
           add_moves(from, targets, true);
           break;
         }
@@ -105,7 +118,7 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
           add_moves(from, targets, false);
           break;
       }
-      
+
       bb &= bb - 1;
     }
   }
@@ -115,12 +128,11 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
 
 void generate_pawn_moves(const Board& board, Color c, std::vector<Move>& moves) {
   Bitboard occ = board.occupancy[WHITE] | board.occupancy[BLACK];
-  Bitboard friendly = board.occupancy[c];
   Bitboard pawns = board.pieces[c][PAWN];
 
   while (pawns) {
     Square from = static_cast<Square>(__builtin_ctzll(pawns));
-    Bitboard targets = Bitboards::pawn_moves(from, c, ~occ, friendly);
+    Bitboard targets = Bitboards::pawn_moves(from, c, ~occ);
 
     while (targets) {
       Square to = static_cast<Square>(__builtin_ctzll(targets));

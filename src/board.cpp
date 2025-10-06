@@ -9,6 +9,7 @@
 
 #include <cstddef>
 
+#include "bitboard.h"
 #include "types.h"
 
 // ---------------- Constructor ----------------
@@ -227,8 +228,11 @@ void Board::makeMove(const Move& m) {
       // Remove the captured pawn (which is not on the 'to' square)
       // White pawns move down (increasing square numbers)
       // Black pawns move up (decreasing square numbers)
-      Square capturedSq = (us == WHITE) ? Square(to - 8) : Square(to + 8);
+      Square capturedSq = (us == WHITE) ? Bitboards::down(to) : Bitboards::up(to);
       pieces[them][PAWN] &= ~Bitboards::square_bb(capturedSq);
+#ifdef DEBUG
+      was_captured = true;
+#endif
       break;
     }
 
