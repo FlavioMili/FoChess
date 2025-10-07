@@ -29,16 +29,15 @@ struct Board {
   Board();
   Board(const Board& other) = default;
 
-  void clear();
+  void updateOccupancy();
+
+  Bitboard attacks_to(Square sq, Color attacker_color) const;
+
+  bool is_in_check(Color c) const;
 
   Color color_on(Square sq) const;
   Piece piece_on(Square sq) const;
 
-  bool is_in_check(Color c) const;
-
-  Bitboard attacks_to(Square sq, Color attacker_color) const;
-
-  void updateOccupancy();
   void makeMove(const Move& m);
 
   std::array<std::array<Bitboard, 6>, 2> pieces;  // [color][pieceType]
