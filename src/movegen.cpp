@@ -17,11 +17,11 @@ namespace MoveGen {
 
 size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
   size_t n_moves = 0;
-  const Color friendly_color = board.getSideToMove();
+  const Color friendly_color = board.sideToMove;
   const Color enemy_color = (friendly_color == WHITE) ? BLACK : WHITE;
 
-  const Bitboard friendly = board.getOccupancy(friendly_color);
-  const Bitboard enemy = board.getOccupancy(enemy_color);
+  const Bitboard friendly = board.occupancy[friendly_color];
+  const Bitboard enemy = board.occupancy[enemy_color];
   const Bitboard occ = friendly | enemy;
   const Bitboard empty = ~occ;
 
@@ -34,7 +34,7 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
 
   // Generate moves for each piece type
   for (size_t pt = PAWN; pt <= KING; ++pt) {
-    Bitboard bb = board.getPieceBitboard(friendly_color, static_cast<Piece>(pt));
+    Bitboard bb = board.pieces[friendly_color][static_cast<Piece>(pt)];
 
     while (bb) {
       Square from = static_cast<Square>(__builtin_ctzll(bb));
@@ -75,11 +75,12 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
             attacks &= attacks - 1;
           }
 
+          Square enp = board.enPassant;
           // --- En passant ---
-          if (board.getEnPassant() != NO_SQUARE) {
+          if (enp != NO_SQUARE) {
             if (Bitboards::pawn_attacks_mask(from, friendly_color) &
-                Bitboards::square_bb(board.getEnPassant())) {
-              Move m = Move(from, board.getEnPassant(), EN_PASSANT);
+                Bitboards::square_bb(enp)) {
+              Move m = Move(from, enp, EN_PASSANT);
               if (is_legal(m)) {
                 moves[n_moves++] = m;
               }
@@ -137,7 +138,7 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
           }
 
           // Castling
-          CastlingRights cr = board.getCastlingRights();
+          CastlingRights cr = board.castling;
           if (friendly_color == WHITE) {
             if (cr.whiteKingside && (occ & Bitboards::WK_EMPTY) == 0 && !board.is_in_check(WHITE)) {
               if (!board.attacks_to(F1, enemy_color) && !board.attacks_to(G1, enemy_color)) {

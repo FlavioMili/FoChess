@@ -33,7 +33,7 @@ void TestBoardGeneration(std::string fen, size_t expected_moves) {
     std::cout << PrintingHelpers::nice_move_to_str(moves[i], board) << "\n";
   }
   std::cout << "En Passant: " <<
-      PrintingHelpers::square_to_str(board.getEnPassant()) << "\n\n\n";
+      PrintingHelpers::square_to_str(board.enPassant) << "\n\n\n";
 }
 
 int main() {

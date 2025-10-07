@@ -28,21 +28,7 @@ struct CastlingRights {
 struct Board {
   Board();
   Board(const Board& other) = default;
-  Bitboard getPieceBitboard(Color c, Piece pt) const;
-  Bitboard getOccupancy(Color c) const;
-  Bitboard getAllOccupied() const;
-  Color getSideToMove() const;
-  Square getEnPassant() const;
-  uint16_t getHalfMoveClock() const;
-  uint16_t getFullMoveNumber() const;
-  CastlingRights getCastlingRights() const;
 
-  void setPiece(Color c, Piece pt, Bitboard bb);
-  void setSideToMove(Color c);
-  void setEnPassant(Square sq);
-  void setCastlingRights(CastlingRights rights);
-  void incrementHalfMove();
-  void incrementFullMove();
   void clear();
 
   Color color_on(Square sq) const;

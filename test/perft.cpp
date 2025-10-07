@@ -28,7 +28,7 @@ size_t perft(Board& board, int depth) {
 
 #ifdef DEBUG
     captures += copy.was_captured;
-    if (copy.is_in_check(copy.getSideToMove())) {
+    if (copy.is_in_check(copy.sideToMove)) {
       checks++;
     }
 #endif

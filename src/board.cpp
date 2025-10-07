@@ -24,55 +24,6 @@ Board::Board()
   pieces.fill({});
 }
 
-// ---------------- Accessors ----------------
-Bitboard Board::getPieceBitboard(Color c, Piece pt) const {
-  return pieces[c][pt];
-}
-
-Bitboard Board::getOccupancy(Color c) const {
-  return occupancy[c];
-}
-Bitboard Board::getAllOccupied() const {
-  return allPieces;
-}
-Color Board::getSideToMove() const {
-  return sideToMove;
-}
-Square Board::getEnPassant() const {
-  return enPassant;
-}
-uint16_t Board::getHalfMoveClock() const {
-  return halfMoveClock;
-}
-uint16_t Board::getFullMoveNumber() const {
-  return fullMoveNumber;
-}
-CastlingRights Board::getCastlingRights() const {
-  return castling;
-}
-
-void Board::setPiece(Color c, Piece pt, Bitboard bb) {
-  pieces[c][pt] = bb;
-  updateOccupancy();
-}
-
-void Board::setSideToMove(Color c) {
-  sideToMove = c;
-}
-void Board::setEnPassant(Square sq) {
-  enPassant = sq;
-}
-void Board::setCastlingRights(CastlingRights rights) {
-  castling = rights;
-}
-
-void Board::incrementHalfMove() {
-  ++halfMoveClock;
-}
-void Board::incrementFullMove() {
-  ++fullMoveNumber;
-}
-
 void Board::clear() {
   pieces.fill({});
   occupancy[Color::WHITE] = occupancy[Color::BLACK] = allPieces = 0;
@@ -232,18 +183,14 @@ void Board::makeMove(const Move& m) {
     } else {
       castling.blackKingside = castling.blackQueenside = false;
     }
-  } else if (pt == ROOK) {
-    if (from == Square::A1)
-      castling.whiteQueenside = false;
-    else if (from == Square::H1)
-      castling.whiteKingside = false;
-    else if (from == Square::A8)
-      castling.blackQueenside = false;
-    else if (from == Square::H8)
-      castling.blackKingside = false;
+  } 
+  else if (pt == ROOK) {
+    if (from == Square::A1) castling.whiteQueenside = false;
+    else if (from == Square::H1) castling.whiteKingside = false;
+    else if (from == Square::A8) castling.blackQueenside = false;
+    else if (from == Square::H8) castling.blackKingside = false;
   }
-
-  if (pt == PAWN) {
+  else if (pt == PAWN) { // check for en passant
     if (us == WHITE && to == Bitboards::up(Bitboards::up(from))) {
       enPassant = Bitboards::up(from);
     } else if (us == BLACK && to == Bitboards::down(Bitboards::down(from))) {
@@ -253,8 +200,6 @@ void Board::makeMove(const Move& m) {
 
   updateOccupancy();
 
-  if (us == BLACK) {
-    fullMoveNumber++;
-  }
+  if (us == BLACK) { fullMoveNumber++; }
   sideToMove = them;
 }
