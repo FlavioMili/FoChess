@@ -57,12 +57,13 @@ struct Board {
 
   std::array<std::array<Bitboard, 6>, 2> pieces;  // [color][pieceType]
   std::array<Bitboard, 2> occupancy;              // white/black
+  // std::array<Piece, 64> square_to_piece; TODO implement
   Bitboard allPieces;                             // all occupied squares
-  Color sideToMove;
   CastlingRights castling;  // castling rights flags
-  Square enPassant = NO_SQUARE;  // en passant target
-  uint16_t halfMoveClock;
   uint16_t fullMoveNumber;
+  uint8_t halfMoveClock;
+  Square enPassant = NO_SQUARE;  // en passant target
+  Color sideToMove;
 
 #ifdef DEBUG
   bool was_captured;

@@ -7,6 +7,7 @@
 
 #pragma once
 #include <array>
+#include <cstddef>
 #include <cstdint>
 
 #include "types.h"
@@ -89,7 +90,7 @@ constexpr Bitboard bb_down_right(Bitboard bb) { return bb_down(bb_right(bb)); }
 constexpr std::array<Bitboard, 64> make_white_pawn_attacks_mask() {
   std::array<Bitboard, 64> table{};
 
-  for (int sq = 0; sq < 64; ++sq) {
+  for (size_t sq = 0; sq < 64; ++sq) {
     Bitboard bb = 0ULL;
     int rank = rank_of(Square(sq));
     int file = file_of(Square(sq));
@@ -106,7 +107,7 @@ constexpr std::array<Bitboard, 64> make_white_pawn_attacks_mask() {
 constexpr std::array<Bitboard, 64> make_black_pawn_attacks_mask() {
   std::array<Bitboard, 64> table{};
 
-  for (int sq = 0; sq < 64; ++sq) {
+  for (size_t sq = 0; sq < 64; ++sq) {
     Bitboard bb = 0ULL;
     int rank = rank_of(Square(sq));
     int file = file_of(Square(sq));
@@ -124,7 +125,7 @@ constexpr std::array<Bitboard, 64> make_black_pawn_attacks_mask() {
 constexpr std::array<Bitboard, 64> make_white_pawn_moves_mask() {
   std::array<Bitboard, 64> table{};
 
-  for (int sq = 0; sq < 64; ++sq) {
+  for (size_t sq = 0; sq < 64; ++sq) {
     Bitboard bb = 0ULL;
     uint8_t rank = rank_of(Square(sq));
 
@@ -140,7 +141,7 @@ constexpr std::array<Bitboard, 64> make_white_pawn_moves_mask() {
 constexpr std::array<Bitboard, 64> make_black_pawn_moves_mask() {
   std::array<Bitboard, 64> table{};
 
-  for (int sq = 0; sq < 64; ++sq) {
+  for (size_t sq = 0; sq < 64; ++sq) {
     Bitboard bb = 0ULL;
     uint8_t rank = rank_of(Square(sq));
 
@@ -195,7 +196,7 @@ inline Bitboard pawn_attacks(Square sq, Color c, Bitboard enemies) {
 constexpr std::array<Bitboard, 64> make_knight_attacks() {
   std::array<Bitboard, 64> table{};
 
-  for (int sq = 0; sq < 64; ++sq) {
+  for (size_t sq = 0; sq < 64; ++sq) {
     Bitboard bb = Bitboards::square_bb(Square(sq));
 
     Bitboard attacks = 0;
@@ -231,7 +232,7 @@ inline Bitboard knight_moves(Square sq, Bitboard friendly) {
 // Compile-time king attacks table
 constexpr std::array<Bitboard, 64> make_king_attacks_mask() {
   std::array<Bitboard, 64> table{};
-  for (int sq = 0; sq < 64; ++sq) {
+  for (size_t sq = 0; sq < 64; ++sq) {
     Bitboard bb = Bitboards::square_bb(Square(sq));
     table[sq] = Bitboards::bb_up(bb) | Bitboards::bb_down(bb) | Bitboards::bb_left(bb) |
                 Bitboards::bb_right(bb) | Bitboards::bb_up_left(bb) | Bitboards::bb_up_right(bb) |

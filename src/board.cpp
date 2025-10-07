@@ -16,11 +16,11 @@
 Board::Board()
     : occupancy{0, 0},
       allPieces(0),
-      sideToMove(Color::WHITE),
       castling(),
-      enPassant(Square::NO_SQUARE),
+      fullMoveNumber(1),
       halfMoveClock(0),
-      fullMoveNumber(1) {
+      enPassant(Square::NO_SQUARE),
+      sideToMove(Color::WHITE) {
   pieces.fill({});
 }
 
@@ -96,7 +96,6 @@ void Board::updateOccupancy() {
 
 Bitboard Board::attacks_to(Square sq, Color attacker_color) const {
   const Bitboard occ = occupancy[WHITE] | occupancy[BLACK];
-  const Bitboard target_bb = Bitboards::square_bb(sq);
   Bitboard attackers = 0;
 
   attackers |= Bitboards::pawn_attacks_mask(sq, static_cast<Color>(BLACK - attacker_color)) &
@@ -162,20 +161,20 @@ void Board::makeMove(const Move& m) {
 #ifdef DEBUG
   was_captured = false;
 #endif
+
   if (occupancy[them] & Bitboards::square_bb(to)) {
     Piece captured = piece_on(to);
     pieces[them][captured] &= ~Bitboards::square_bb(to);
 
     // Update castling rights if rook captured
-    // Bit 0 = A8, Bit 7 = H8, Bit 56 = A1, Bit 63 = H1
     if (captured == ROOK) {
-      if (to == 56)
+      if (to == Square::A1)
         castling.whiteQueenside = false;
-      else if (to == 63)
+      else if (to == Square::H1)
         castling.whiteKingside = false;
-      else if (to == 0)
+      else if (to == Square::A8)
         castling.blackQueenside = false;
-      else if (to == 7)
+      else if (to == Square::H8)
         castling.blackKingside = false;
     }
 #ifdef DEBUG
