@@ -10,4 +10,4 @@
 // moved all inline in the header. let's see if this file will be removed.
 namespace Bitboards {
 
-}
+}  // namespace Bitboards

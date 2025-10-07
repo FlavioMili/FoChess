@@ -6,6 +6,7 @@
 // -----------------------------------------------------------------------------
 
 #pragma once
+#include <array>
 #include <cstdint>
 
 #include "types.h"
@@ -39,15 +40,15 @@ constexpr Bitboard RANK_6 = 0x0000FF0000000000ULL;
 constexpr Bitboard RANK_7 = 0x00FF000000000000ULL;
 constexpr Bitboard RANK_8 = 0xFF00000000000000ULL;
 
-inline constexpr Bitboard square_bb(Square sq) noexcept {
+constexpr Bitboard square_bb(Square sq) noexcept {
   return Bitboard(1) << static_cast<int>(sq);
 }
 
-inline constexpr uint8_t file_of(Square sq) noexcept {
+constexpr uint8_t file_of(Square sq) noexcept {
   return static_cast<uint8_t>(sq % 8);
 }
 
-inline constexpr uint8_t rank_of(Square sq) noexcept {
+constexpr uint8_t rank_of(Square sq) noexcept {
   return static_cast<uint8_t>(7 - (static_cast<int>(sq) / 8));
 }
 
@@ -64,125 +65,195 @@ constexpr Bitboard BQ_EMPTY = square_bb(B8) | square_bb(C8) | square_bb(D8);
 constexpr Bitboard BQ_SAFE  = square_bb(E8) | square_bb(D8) | square_bb(C8);
 
 
-inline Square up(Square sq) {
-  return Square(int(sq) - 8);
+constexpr Square up(Square sq)        { return Square(int(sq) - 8); }
+constexpr Square down(Square sq)      { return Square(int(sq) + 8); }
+constexpr Square left(Square sq)      { return Square(int(sq) - 1); }
+constexpr Square right(Square sq)     { return Square(int(sq) + 1); }
+constexpr Square up_left(Square sq)   { return up(left(sq)); }
+constexpr Square up_right(Square sq)  { return up(right(sq)); }
+constexpr Square down_left(Square sq) { return down(left(sq)); }
+constexpr Square down_right(Square sq){ return down(right(sq)); }
+
+constexpr Bitboard bb_up(Bitboard bb)         { return bb >> 8; }
+constexpr Bitboard bb_down(Bitboard bb)       { return bb << 8; }
+constexpr Bitboard bb_left(Bitboard bb)       { return (bb >> 1) & ~FILE_H; }
+constexpr Bitboard bb_right(Bitboard bb)      { return (bb << 1) & ~FILE_A; }
+constexpr Bitboard bb_up_left(Bitboard bb)    { return bb_up(bb_left(bb)); }
+constexpr Bitboard bb_up_right(Bitboard bb)   { return bb_up(bb_right(bb)); }
+constexpr Bitboard bb_down_left(Bitboard bb)  { return bb_down(bb_left(bb)); }
+constexpr Bitboard bb_down_right(Bitboard bb) { return bb_down(bb_right(bb)); }
+
+/* *******************************************************************
+                               PAWN MOVES
+**********************************************************************/
+constexpr std::array<Bitboard, 64> make_white_pawn_attacks_mask() {
+  std::array<Bitboard, 64> table{};
+
+  for (int sq = 0; sq < 64; ++sq) {
+    Bitboard bb = 0ULL;
+    int rank = rank_of(Square(sq));
+    int file = file_of(Square(sq));
+
+    // White pawn attacks: up-left, up-right
+    if (file > 0 && rank < 7) bb |= Bitboards::bb_up_left(square_bb(Square(sq)));
+    if (file < 7 && rank < 7) bb |= Bitboards::bb_up_right(square_bb(Square(sq)));
+
+    table[sq] = bb;
+  }
+  return table;
 }
-inline Square down(Square sq) {
-  return Square(int(sq) + 8);
+
+constexpr std::array<Bitboard, 64> make_black_pawn_attacks_mask() {
+  std::array<Bitboard, 64> table{};
+
+  for (int sq = 0; sq < 64; ++sq) {
+    Bitboard bb = 0ULL;
+    int rank = rank_of(Square(sq));
+    int file = file_of(Square(sq));
+
+    // Black pawn attacks: down-left, down-right
+    if (file > 0 && rank > 0) bb |= Bitboards::bb_down_left(square_bb(Square(sq)));
+    if (file < 7 && rank > 0) bb |= Bitboards::bb_down_right(square_bb(Square(sq)));
+
+    table[sq] = bb;
+  }
+
+  return table;
 }
-inline Square left(Square sq) {
-  return Square(int(sq) - 1);
+
+constexpr std::array<Bitboard, 64> make_white_pawn_moves_mask() {
+  std::array<Bitboard, 64> table{};
+
+  for (int sq = 0; sq < 64; ++sq) {
+    Bitboard bb = 0ULL;
+    uint8_t rank = rank_of(Square(sq));
+
+    if (rank < 7) bb |= Bitboards::bb_up(Bitboards::square_bb(Square(sq)));
+    if (rank == 1) bb |= Bitboards::bb_up(Bitboards::bb_up(Bitboards::square_bb(Square(sq))));
+
+    table[sq] = bb;
+  }
+
+  return table;
 }
-inline Square right(Square sq) {
-  return Square(int(sq) + 1);
+
+constexpr std::array<Bitboard, 64> make_black_pawn_moves_mask() {
+  std::array<Bitboard, 64> table{};
+
+  for (int sq = 0; sq < 64; ++sq) {
+    Bitboard bb = 0ULL;
+    uint8_t rank = rank_of(Square(sq));
+
+    // Single push (one rank down)
+    if (rank > 0) bb |= Bitboards::bb_down(Bitboards::square_bb(Square(sq)));
+
+    // Double push (only from rank 7, i.e., rank == 6)
+    if (rank == 6) bb |= Bitboards::bb_down(Bitboards::bb_down(Bitboards::square_bb(Square(sq))));
+
+    table[sq] = bb;
+  }
+
+  return table;
 }
-inline Square up_left(Square sq) {
-  return up(left(sq));
-}
-inline Square up_right(Square sq) {
-  return up(right(sq));
-}
-inline Square down_left(Square sq) {
-  return down(left(sq));
-}
-inline Square down_right(Square sq) {
-  return down(right(sq));
-}
-inline Bitboard bb_up(Bitboard bb) {
-  return bb >> 8;
-}
-inline Bitboard bb_down(Bitboard bb) {
-  return bb << 8;
-}
-inline Bitboard bb_left(Bitboard bb) {
-  return (bb >> 1) & ~FILE_H;
-}
-inline Bitboard bb_right(Bitboard bb) {
-  return (bb << 1) & ~FILE_A;
-}
-inline Bitboard bb_up_left(Bitboard bb) {
-  return bb_up(bb_left(bb));
-}
-inline Bitboard bb_up_right(Bitboard bb) {
-  return bb_up(bb_right(bb));
-}
-inline Bitboard bb_down_left(Bitboard bb) {
-  return bb_down(bb_left(bb));
-}
-inline Bitboard bb_down_right(Bitboard bb) {
-  return bb_down(bb_right(bb));
+
+constexpr auto black_pawn_moves_mask = make_black_pawn_moves_mask();
+constexpr auto white_pawn_moves_mask = make_white_pawn_moves_mask();
+constexpr auto white_pawn_attacks_mask = make_white_pawn_attacks_mask();
+constexpr auto black_pawn_attacks_mask = make_black_pawn_attacks_mask();
+
+inline Bitboard pawn_moves(Square sq, Color c, Bitboard empty) {
+  const auto& mask = (c == WHITE) ? white_pawn_moves_mask : black_pawn_moves_mask;
+  Bitboard moves = mask[sq];
+
+  // Remove blocked squares
+  Bitboard one_step = (c == WHITE) ? (Bitboards::bb_up(Bitboards::square_bb(sq)) & empty)
+    : (Bitboards::bb_down(Bitboards::square_bb(sq)) & empty);
+
+  // If the single-step square is blocked, remove all moves
+  if (!one_step) moves &= ~mask[sq];
+  else {
+    // If double push exists in the mask but the intermediate square is blocked, remove it
+    Bitboard double_push = moves & ~one_step;
+    moves &= ~((double_push) & ~(Bitboards::bb_up(one_step) | Bitboards::bb_down(one_step)));
+  }
+
+  return moves & empty;
 }
 
 inline Bitboard pawn_attacks_mask(Square sq, Color c) {
-  Bitboard bb = square_bb(sq);
-  if (c == WHITE)
-    return bb_up_left(bb) | bb_up_right(bb);
-  else
-    return bb_down_left(bb) | bb_down_right(bb);
+  return (c == WHITE ? white_pawn_attacks_mask[sq] : black_pawn_attacks_mask[sq]);
 }
 
 inline Bitboard pawn_attacks(Square sq, Color c, Bitboard enemies) {
-  // Mask the generic attack mask with the enemy bitboard so captures only appear
   return pawn_attacks_mask(sq, c) & enemies;
 }
 
-inline Bitboard pawn_moves(Square sq, Color c, Bitboard empty) {
-  Bitboard moves = 0;
-  Bitboard bb = square_bb(sq);
+/* *******************************************************************
+                               KNIGHT MOVES
+**********************************************************************/
 
-  // TODO remove magic constants (actually just use precomputed tables)
-  const int start_rank = (c == WHITE) ? 1 : 6;
-  auto shift_forward = (c == WHITE) ? bb_up : bb_down;
-  Bitboard push_one = shift_forward(bb) & empty;
-  moves |= push_one;
+constexpr std::array<Bitboard, 64> make_knight_attacks() {
+  std::array<Bitboard, 64> table{};
 
-  if (push_one && (rank_of(sq) == start_rank)) {
-    Bitboard push_two = shift_forward(push_one) & empty;
-    moves |= push_two;
+  for (int sq = 0; sq < 64; ++sq) {
+    Bitboard bb = Bitboards::square_bb(Square(sq));
+
+    Bitboard attacks = 0;
+    attacks |= Bitboards::bb_up(Bitboards::bb_up_left(bb));        // up-up-left
+    attacks |= Bitboards::bb_up(Bitboards::bb_up_right(bb));       // up-up-right
+    attacks |= Bitboards::bb_down(Bitboards::bb_down_left(bb));    // down-down-left
+    attacks |= Bitboards::bb_down(Bitboards::bb_down_right(bb));   // down-down-right
+    attacks |= Bitboards::bb_left(Bitboards::bb_up_left(bb));      // left-left-up
+    attacks |= Bitboards::bb_left(Bitboards::bb_down_left(bb));    // left-left-down
+    attacks |= Bitboards::bb_right(Bitboards::bb_up_right(bb));    // right-right-up
+    attacks |= Bitboards::bb_right(Bitboards::bb_down_right(bb));  // right-right-down
+
+    table[sq] = attacks;
   }
-  return moves;
+
+  return table;
 }
 
-// TODO make precalculated tables
+constexpr auto knight_attacks_mask = make_knight_attacks();
+
 inline Bitboard knight_attacks(Square sq) {
-  Bitboard bb = square_bb(sq);
-
-  // Two up, one left/right
-  Bitboard u2 = bb_up(bb_up(bb));
-  Bitboard u2l = bb_left(u2);
-  Bitboard u2r = bb_right(u2);
-
-  // Two down, one left/right
-  Bitboard d2 = bb_down(bb_down(bb));
-  Bitboard d2l = bb_left(d2);
-  Bitboard d2r = bb_right(d2);
-
-  // Two left, one up/down
-  Bitboard l2 = bb_left(bb_left(bb));
-  Bitboard l2u = bb_up(l2);
-  Bitboard l2d = bb_down(l2);
-
-  // Two right, one up/down
-  Bitboard r2 = bb_right(bb_right(bb));
-  Bitboard r2u = bb_up(r2);
-  Bitboard r2d = bb_down(r2);
-
-  return u2l | u2r | d2l | d2r | l2u | l2d | r2u | r2d;
+  return knight_attacks_mask[sq];
 }
 
 inline Bitboard knight_moves(Square sq, Bitboard friendly) {
-  return knight_attacks(sq) & ~friendly;
+  return knight_attacks_mask[sq] & ~friendly;
 }
 
+/* *******************************************************************
+                               KING MOVES
+**********************************************************************/
+
+// Compile-time king attacks table
+constexpr std::array<Bitboard, 64> make_king_attacks_mask() {
+  std::array<Bitboard, 64> table{};
+  for (int sq = 0; sq < 64; ++sq) {
+    Bitboard bb = Bitboards::square_bb(Square(sq));
+    table[sq] = Bitboards::bb_up(bb) | Bitboards::bb_down(bb) | Bitboards::bb_left(bb) |
+                Bitboards::bb_right(bb) | Bitboards::bb_up_left(bb) | Bitboards::bb_up_right(bb) |
+                Bitboards::bb_down_left(bb) | Bitboards::bb_down_right(bb);
+  }
+  return table;
+}
+
+constexpr auto king_attacks_mask = make_king_attacks_mask();
+
+// Runtime helpers
 inline Bitboard king_attacks(Square sq) {
-  Bitboard bb = square_bb(sq);
-  return bb_up(bb) | bb_down(bb) | bb_left(bb) | bb_right(bb) | bb_up_left(bb) | bb_up_right(bb) |
-         bb_down_left(bb) | bb_down_right(bb);
+  return king_attacks_mask[sq];
 }
 
 inline Bitboard king_moves(Square sq, Bitboard friendly) {
-  return king_attacks(sq) & ~friendly;
+  return king_attacks_mask[sq] & ~friendly;
 }
+
+/* *******************************************************************
+                               ROOK MOVES
+**********************************************************************/
 
 inline Bitboard rook_attacks(Square sq, Bitboard occ) {
   Bitboard attacks = 0;
