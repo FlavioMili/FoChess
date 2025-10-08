@@ -7,7 +7,6 @@
 
 #include "movegen.h"
 
-#include <cassert>
 #include <cstddef>
 
 #include "bitboard.h"
@@ -32,6 +31,19 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
     return !tmp.is_in_check(friendly_color);
   };
 
+  auto add_promotions_if_legal = [&](Square from, Square to) {
+    // Check once with queen (most common promotion)
+    Move test = Move(from, to, QUEEN);
+    Board tmp = board;
+    tmp.makeMove(test);
+    if (!tmp.is_in_check(friendly_color)) {
+      moves[n_moves++] = Move(from, to, QUEEN);
+      moves[n_moves++] = Move(from, to, ROOK);
+      moves[n_moves++] = Move(from, to, BISHOP);
+      moves[n_moves++] = Move(from, to, KNIGHT);
+    }
+  };
+
   // Generate moves for each piece type
   for (size_t pt = PAWN; pt <= KING; ++pt) {
     Bitboard bb = board.pieces[friendly_color][static_cast<Piece>(pt)];
@@ -48,10 +60,7 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
           while (pushes) {
             Square to = static_cast<Square>(__builtin_ctzll(pushes));
             if (Bitboards::rank_of(to) == promotion_rank) {
-              if (is_legal(Move(from, to, QUEEN))) moves[n_moves++] = Move(from, to, QUEEN);
-              if (is_legal(Move(from, to, ROOK))) moves[n_moves++] = Move(from, to, ROOK);
-              if (is_legal(Move(from, to, BISHOP))) moves[n_moves++] = Move(from, to, BISHOP);
-              if (is_legal(Move(from, to, KNIGHT))) moves[n_moves++] = Move(from, to, KNIGHT);
+              add_promotions_if_legal(from, to);
             } else {
               Move m = Move(from, to);
               if (is_legal(m)) moves[n_moves++] = m;
@@ -64,10 +73,7 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
           while (attacks) {
             Square to = static_cast<Square>(__builtin_ctzll(attacks));
             if (Bitboards::rank_of(to) == promotion_rank) {
-              if (is_legal(Move(from, to, QUEEN))) moves[n_moves++] = Move(from, to, QUEEN);
-              if (is_legal(Move(from, to, ROOK))) moves[n_moves++] = Move(from, to, ROOK);
-              if (is_legal(Move(from, to, BISHOP))) moves[n_moves++] = Move(from, to, BISHOP);
-              if (is_legal(Move(from, to, KNIGHT))) moves[n_moves++] = Move(from, to, KNIGHT);
+              add_promotions_if_legal(from, to);
             } else {
               Move m = Move(from, to);
               if (is_legal(m)) moves[n_moves++] = m;
@@ -77,13 +83,11 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
 
           Square enp = board.enPassant;
           // --- En passant ---
-          if (enp != NO_SQUARE) {
-            if (Bitboards::pawn_attacks_mask(from, friendly_color) &
-                Bitboards::square_bb(enp)) {
-              Move m = Move(from, enp, EN_PASSANT);
-              if (is_legal(m)) {
-                moves[n_moves++] = m;
-              }
+          if (enp != NO_SQUARE &&
+              Bitboards::pawn_attacks_mask(from, friendly_color) & Bitboards::square_bb(enp)) {
+            Move m = Move(from, enp, EN_PASSANT);
+            if (is_legal(m)) {
+              moves[n_moves++] = m;
             }
           }
           break;

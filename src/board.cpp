@@ -25,14 +25,13 @@ Board::Board()
   sideToMove(Color::WHITE) {}
 
 void Board::updateOccupancy() {
-  occupancy[Color::WHITE] = occupancy[Color::BLACK] = 0;
-  allPieces = 0;
-  for (size_t c = 0; c < 2; ++c) {
-    for (size_t pt = 0; pt < 6; ++pt) {
-      occupancy[c] |= pieces[c][pt];
-      allPieces |= pieces[c][pt];
-    }
-  }
+  occupancy[WHITE] = pieces[WHITE][PAWN] | pieces[WHITE][KNIGHT] | pieces[WHITE][BISHOP] |
+                     pieces[WHITE][ROOK] | pieces[WHITE][QUEEN] | pieces[WHITE][KING];
+
+  occupancy[BLACK] = pieces[BLACK][PAWN] | pieces[BLACK][KNIGHT] | pieces[BLACK][BISHOP] |
+                     pieces[BLACK][ROOK] | pieces[BLACK][QUEEN] | pieces[BLACK][KING];
+
+  allPieces = occupancy[WHITE] | occupancy[BLACK];
 }
 
 Bitboard Board::attacks_to(Square sq, Color attacker_color) const {
@@ -152,8 +151,7 @@ void Board::makeMove(const Move& m) {
         break;
       }
 
-      default:
-        break;
+      default: break;
     }
   }
 
