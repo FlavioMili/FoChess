@@ -170,6 +170,7 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
           }
           break;
         }
+        default: break;
       }
       bb &= bb - 1;
     }

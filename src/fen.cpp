@@ -17,20 +17,13 @@ namespace {
 
 inline Piece charToPiece(char c) {
   switch (std::toupper(c)) {
-    case 'P':
-      return PAWN;
-    case 'N':
-      return KNIGHT;
-    case 'B':
-      return BISHOP;
-    case 'R':
-      return ROOK;
-    case 'Q':
-      return QUEEN;
-    case 'K':
-      return KING;
-    default:
-      throw std::runtime_error("Invalid FEN piece char");
+    case 'P': return PAWN;
+    case 'N': return KNIGHT;
+    case 'B': return BISHOP;
+    case 'R': return ROOK;
+    case 'Q': return QUEEN;
+    case 'K': return KING;
+    default: return NO_PIECE;
   }
 }
 
@@ -41,27 +34,13 @@ inline Color charToColor(char c) {
 inline char pieceToChar(Piece pt, Color c) {
   char ch = '?';
   switch (pt) {
-    case PAWN:
-      ch = 'P';
-      break;
-    case KNIGHT:
-      ch = 'N';
-      break;
-    case BISHOP:
-      ch = 'B';
-      break;
-    case ROOK:
-      ch = 'R';
-      break;
-    case QUEEN:
-      ch = 'Q';
-      break;
-    case KING:
-      ch = 'K';
-      break;
-    default:
-      ch = '?';
-      break;
+    case PAWN: ch = 'P'; break;
+    case KNIGHT: ch = 'N'; break;
+    case BISHOP: ch = 'B'; break;
+    case ROOK: ch = 'R'; break;
+    case QUEEN: ch = 'Q'; break;
+    case KING: ch = 'K'; break;
+    default: ch = '?'; break;
   }
   if (c == BLACK) ch = static_cast<char>(std::tolower(ch));
   return ch;
@@ -98,20 +77,12 @@ Board parse(const std::string& fen) {
   CastlingRights cr;
   for (char c : castlePart) {
     switch (c) {
-      case 'K':
-        cr.whiteKingside = true;
-        break;
-      case 'Q':
-        cr.whiteQueenside = true;
-        break;
-      case 'k':
-        cr.blackKingside = true;
-        break;
-      case 'q':
-        cr.blackQueenside = true;
-        break;
-      case '-':
-        break;
+      case 'K': cr.whiteKingside = true; break;
+      case 'Q': cr.whiteQueenside = true; break;
+      case 'k': cr.blackKingside = true; break;
+      case 'q': cr.blackQueenside = true; break;
+      case '-': break;
+      default: break;
     }
   }
   board.castling = cr;

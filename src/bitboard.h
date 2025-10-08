@@ -42,7 +42,7 @@ constexpr Bitboard RANK_7 = 0x00FF000000000000ULL;
 constexpr Bitboard RANK_8 = 0xFF00000000000000ULL;
 
 constexpr Bitboard square_bb(Square sq) noexcept {
-  return Bitboard(1) << static_cast<int>(sq);
+  return Bitboard(1) << static_cast<uint8_t>(sq);
 }
 
 constexpr uint8_t file_of(Square sq) noexcept {
@@ -66,10 +66,10 @@ constexpr Bitboard BQ_EMPTY = square_bb(B8) | square_bb(C8) | square_bb(D8);
 constexpr Bitboard BQ_SAFE  = square_bb(E8) | square_bb(D8) | square_bb(C8);
 
 
-constexpr Square up(Square sq)        { return Square(int(sq) - 8); }
-constexpr Square down(Square sq)      { return Square(int(sq) + 8); }
-constexpr Square left(Square sq)      { return Square(int(sq) - 1); }
-constexpr Square right(Square sq)     { return Square(int(sq) + 1); }
+constexpr Square up(Square sq)        { return Square(sq - 8); }
+constexpr Square down(Square sq)      { return Square(sq + 8); }
+constexpr Square left(Square sq)      { return Square(sq - 1); }
+constexpr Square right(Square sq)     { return Square(sq + 1); }
 constexpr Square up_left(Square sq)   { return up(left(sq)); }
 constexpr Square up_right(Square sq)  { return up(right(sq)); }
 constexpr Square down_left(Square sq) { return down(left(sq)); }
@@ -129,8 +129,9 @@ constexpr std::array<Bitboard, 64> make_white_pawn_moves_mask() {
     Bitboard bb = 0ULL;
     uint8_t rank = rank_of(Square(sq));
 
-    if (rank < 7) bb |= Bitboards::bb_up(Bitboards::square_bb(Square(sq)));
-    if (rank == 1) bb |= Bitboards::bb_up(Bitboards::bb_up(Bitboards::square_bb(Square(sq))));
+    auto up = Bitboards::bb_up(Bitboards::square_bb(Square(sq)));
+    if (rank < 7) bb |= up;
+    if (rank == 1) bb |= Bitboards::bb_up(up);
 
     table[sq] = bb;
   }
@@ -145,11 +146,9 @@ constexpr std::array<Bitboard, 64> make_black_pawn_moves_mask() {
     Bitboard bb = 0ULL;
     uint8_t rank = rank_of(Square(sq));
 
-    // Single push (one rank down)
-    if (rank > 0) bb |= Bitboards::bb_down(Bitboards::square_bb(Square(sq)));
-
-    // Double push (only from rank 7, i.e., rank == 6)
-    if (rank == 6) bb |= Bitboards::bb_down(Bitboards::bb_down(Bitboards::square_bb(Square(sq))));
+    auto down = Bitboards::bb_down(Bitboards::square_bb(Square(sq)));
+    if (rank > 0) bb |= down;
+    if (rank == 6) bb |= Bitboards::bb_down(down);
 
     table[sq] = bb;
   }
