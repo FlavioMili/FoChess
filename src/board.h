@@ -13,6 +13,9 @@
 #include "move.h"
 #include "types.h"
 
+// I made some tests with an enum : uint8_t 
+// but this implementation was much faster 
+// apparently so I will keep it like this
 struct CastlingRights {
   bool whiteKingside = false;
   bool whiteQueenside = false;

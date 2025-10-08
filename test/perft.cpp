@@ -1,3 +1,10 @@
+// -----------------------------------------------------------------------------
+//  FoChess
+//  Copyright (c) 2025 Flavio Milinanni. All Rights Reserved.
+//
+//  Read the LICENSE file in the project root please.
+// -----------------------------------------------------------------------------
+
 #include <array>
 #include <cstddef>
 #include <iomanip>
@@ -15,10 +22,15 @@ int checks = 0;
 #endif
 
 size_t perft(Board& board, int depth) {
-  if (depth == 0) return 1;
+  // non-bulk calculating
+  // if (depth == 0) return 1;
 
   std::array<Move, MAX_MOVES> moves;
   size_t n = MoveGen::generate_all(board, moves);
+
+  // bulk calculating
+  if (depth == 1) return n;
+
   uint64_t nodes = 0;
 
   for (size_t i = 0; i < n; ++i) {
