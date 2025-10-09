@@ -1,19 +1,25 @@
 #include <array>
+#include <cstddef>
 
 #include "board.h"
 #include "fen.h"
 #include "helpers.h"
 #include "move.h"
 #include "movegen.h"
+#include "search.h"
 
 int main() {
   Board board = FEN::parse("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -");
-  std::array<Move, MAX_MOVES> moves;
-  int n = MoveGen::generate_all(board, moves);
-  while (n > 0) {
-    board.makeMove(moves[0]);
+
+  while (true) {
+    std::array<Move, MAX_MOVES> moves;
+    size_t n = MoveGen::generate_all(board, moves);
+    if (n == 0) break;
+
+    SearchResult result = Search::negamax(2, board); 
+    board.makeMove(result.move);
+
     PrintingHelpers::printBoard(board);
-    n = MoveGen::generate_all(board, moves);
   }
 
   return 0;

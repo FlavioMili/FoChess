@@ -35,16 +35,15 @@ void Board::updateOccupancy() {
 }
 
 Bitboard Board::attacks_to(Square sq, Color attacker_color) const {
-  const Bitboard occ = occupancy[WHITE] | occupancy[BLACK];
   Bitboard attackers = 0;
 
   attackers |= Bitboards::pawn_attacks_mask(sq, static_cast<Color>(BLACK - attacker_color)) &
     pieces[attacker_color][PAWN];
   attackers |= Bitboards::knight_attacks(sq) & pieces[attacker_color][KNIGHT];
   attackers |= Bitboards::king_attacks(sq) & pieces[attacker_color][KING];
-  attackers |= Bitboards::bishop_attacks(sq, occ) &
+  attackers |= Bitboards::bishop_attacks(sq, allPieces) &
     (pieces[attacker_color][BISHOP] | pieces[attacker_color][QUEEN]);
-  attackers |= Bitboards::rook_attacks(sq, occ) &
+  attackers |= Bitboards::rook_attacks(sq, allPieces) &
     (pieces[attacker_color][ROOK] | pieces[attacker_color][QUEEN]);
 
   return attackers;

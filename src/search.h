@@ -6,3 +6,17 @@
 // -----------------------------------------------------------------------------
 
 #pragma once
+
+#include "board.h"
+#include "move.h"
+
+struct SearchResult {
+  int score;
+  Move move;
+};
+
+namespace Search {
+
+SearchResult negamax(int depth, Board& board);
+
+}
