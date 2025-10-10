@@ -83,29 +83,30 @@ void Board::makeMove(const Move& m) {
   Square from = m.from_sq(), to = m.to_sq();
   Color us = sideToMove, them = Color(BLACK - us);
   Piece pt = piece_on(from);
+  auto mt = m.type();
 
   const Bitboard from_bb = Bitboards::square_bb(from);
   const Bitboard to_bb = Bitboards::square_bb(to);
   const Bitboard from_to_bb = (from_bb | to_bb);
 
-  const bool is_capture = (occupancy[them] & to_bb) != 0;
+  // Clear en passant (will be set again if this is a double pawn push)
+  enPassant = NO_SQUARE;
 
-#ifdef DEBUG
-  was_captured = is_capture;
-#endif
+  const bool is_capture = (occupancy[them] & to_bb) != 0;
 
   // Update half-move clock (reset on pawn move or capture)
   halfMoveClock = (pt == PAWN || is_capture) ? 0 : halfMoveClock + 1;
 
-  // Clear en passant (will be set again if this is a double pawn push)
-  enPassant = NO_SQUARE;
+#ifdef DEBUG
+  was_captured = is_capture;
+#endif
 
   if (is_capture) {
     Piece captured = piece_on(to);
     pieces[them][captured] &= ~to_bb;
 
     // Update castling rights if rook captured
-    if (captured == ROOK) {
+    if (captured == ROOK) [[unlikely]] {
       if (to == Square::A1) castling.whiteQueenside = false;
       else if (to == Square::H1) castling.whiteKingside = false;
       else if (to == Square::A8) castling.blackQueenside = false;
@@ -117,9 +118,7 @@ void Board::makeMove(const Move& m) {
   pieces[us][pt] ^= from_to_bb;
 
   // Handle special moves
-  auto mt = m.type();
-  if (mt != MoveType::NORMAL) {
-
+  if (mt != MoveType::NORMAL) [[unlikely]] {
     switch (mt) {
       case MoveType::PROMOTION:
         // Remove pawn, add promoted piece
@@ -152,7 +151,7 @@ void Board::makeMove(const Move& m) {
 
       default: break;
     }
-  }
+  } // end not normal movetype checks
 
   // Update castling rights based on piece moved
   if (pt == KING) {
@@ -180,6 +179,5 @@ void Board::makeMove(const Move& m) {
   updateOccupancy();
 
   fullMoveNumber += BLACK;
-
   sideToMove = them;
 }

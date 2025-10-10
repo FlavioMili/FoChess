@@ -92,14 +92,40 @@ inline std::string move_to_str(const Move& m) {
 
   if (m.type() == PROMOTION) {
     switch (m.promotion_type()) {
-      case QUEEN: s += "=Q"; break;
-      case ROOK: s += "=R"; break;
-      case BISHOP: s += "=B"; break;
-      case KNIGHT: s += "=N"; break;
+      case QUEEN: s += "q"; break;
+      case ROOK: s += "r"; break;
+      case BISHOP: s += "b"; break;
+      case KNIGHT: s += "n"; break;
       default: break;
     }
   }
   return s;
+}
+
+inline Move uci_to_move(const std::string& s) {
+  if (s.size() < 4) return Move(); // invalid
+
+  // Convert file+rank to Square
+  int from_file = s[0] - 'a';
+  int from_rank = '8' - s[1]; // rank 8 -> 0
+  int to_file   = s[2] - 'a';
+  int to_rank   = '8' - s[3];
+
+  Square from_sq = static_cast<Square>(from_rank * 8 + from_file);
+  Square to_sq   = static_cast<Square>(to_rank * 8 + to_file);
+
+  // Check for promotion
+  if (s.size() == 5) {
+    Piece promo = QUEEN;
+    switch (s[4]) {
+      case 'q': promo = QUEEN; break;
+      case 'r': promo = ROOK;  break;
+      case 'b': promo = BISHOP; break;
+      case 'n': promo = KNIGHT; break;
+    }
+    return Move(from_sq, to_sq, promo);
+  }
+  return Move(from_sq, to_sq);
 }
 
 }  // namespace PrintingHelpers

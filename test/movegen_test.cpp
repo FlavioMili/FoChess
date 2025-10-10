@@ -30,6 +30,7 @@ void TestBoardGeneration(std::string fen, size_t expected_moves) {
   std::cout << "\nGenerated " << n_moves << " moves:\n";
   assert(n_moves == expected_moves);
   for (size_t i = 0; i < n_moves; ++i) {
+    // std::cout << PrintingHelpers::move_to_str(moves[i]) << "\n";  //      THIS IS UCI STYLING
     std::cout << PrintingHelpers::nice_move_to_str(moves[i], board) << "\n";
   }
   std::cout << "En Passant: " <<
@@ -48,6 +49,9 @@ int main() {
 
   std::string stalemateFEN ="8/8/8/8/8/1q6/8/K1k5 w - - 0 1";
   TestBoardGeneration(stalemateFEN, 0);
+
+  std::string castlingFEN ="8/4k2P/8/Pp4p1/8/8/8/R3K2R w KQ - 0 1";
+  TestBoardGeneration(castlingFEN, 22);
 
   return 0;
 }

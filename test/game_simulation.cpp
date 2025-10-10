@@ -1,3 +1,10 @@
+// -----------------------------------------------------------------------------
+//  FoChess
+//  Copyright (c) 2025 Flavio Milinanni. All Rights Reserved.
+//
+//  Read the LICENSE file in the project root please.
+// -----------------------------------------------------------------------------
+
 #include <array>
 #include <cstddef>
 
@@ -16,7 +23,7 @@ int main() {
     size_t n = MoveGen::generate_all(board, moves);
     if (n == 0) break;
 
-    SearchResult result = Search::negamax(2, board); 
+    SearchResult result = FoChess::negamax(5, board); 
     board.makeMove(result.move);
 
     PrintingHelpers::printBoard(board);

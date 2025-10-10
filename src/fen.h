@@ -13,7 +13,7 @@
 
 namespace FEN {
 
-Board parse(const std::string& fen);
+Board parse(const std::string& fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -");
 std::string to_fen(const Board& board);
 
 }  // namespace FEN

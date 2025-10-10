@@ -21,8 +21,7 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
 
   const Bitboard friendly = board.occupancy[friendly_color];
   const Bitboard enemy = board.occupancy[enemy_color];
-  const Bitboard occ = friendly | enemy;
-  const Bitboard empty = ~occ;
+  const Bitboard empty = ~board.allPieces;
 
   // Helper lambda to test if a move is legal by making it on a temporary board
   auto is_legal = [&](const Move& m) -> bool {
@@ -103,7 +102,7 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
           break;
         }
         case BISHOP: {
-          targets = Bitboards::bishop_moves(from, occ, friendly);
+          targets = Bitboards::bishop_moves(from, board.allPieces, friendly);
           while (targets) {
             Square to = static_cast<Square>(__builtin_ctzll(targets));
             Move m = Move(from, to);
@@ -113,7 +112,7 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
           break;
         }
         case ROOK: {
-          targets = Bitboards::rook_moves(from, occ, friendly);
+          targets = Bitboards::rook_moves(from, board.allPieces, friendly);
           while (targets) {
             Square to = static_cast<Square>(__builtin_ctzll(targets));
             Move m = Move(from, to);
@@ -123,7 +122,7 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
           break;
         }
         case QUEEN: {
-          targets = Bitboards::queen_moves(from, occ, friendly);
+          targets = Bitboards::queen_moves(from, board.allPieces, friendly);
           while (targets) {
             Square to = static_cast<Square>(__builtin_ctzll(targets));
             Move m = Move(from, to);
@@ -144,24 +143,24 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
           // Castling
           CastlingRights cr = board.castling;
           if (friendly_color == WHITE) {
-            if (cr.whiteKingside && (occ & Bitboards::WK_EMPTY) == 0 && !board.is_in_check(WHITE)) {
+            if (cr.whiteKingside && (board.allPieces & Bitboards::WK_EMPTY) == 0 && !board.is_in_check(WHITE)) {
               if (!board.attacks_to(F1, enemy_color) && !board.attacks_to(G1, enemy_color)) {
                 moves[n_moves++] = Move(E1, G1, CASTLING);
               }
             }
-            if (cr.whiteQueenside && (occ & Bitboards::WQ_EMPTY) == 0 &&
+            if (cr.whiteQueenside && (board.allPieces & Bitboards::WQ_EMPTY) == 0 &&
                 !board.is_in_check(WHITE)) {
               if (!board.attacks_to(D1, enemy_color) && !board.attacks_to(C1, enemy_color)) {
                 moves[n_moves++] = Move(E1, C1, CASTLING);
               }
             }
           } else {  // BLACK
-            if (cr.blackKingside && (occ & Bitboards::BK_EMPTY) == 0 && !board.is_in_check(BLACK)) {
+            if (cr.blackKingside && (board.allPieces & Bitboards::BK_EMPTY) == 0 && !board.is_in_check(BLACK)) {
               if (!board.attacks_to(F8, enemy_color) && !board.attacks_to(G8, enemy_color)) {
                 moves[n_moves++] = Move(E8, G8, CASTLING);
               }
             }
-            if (cr.blackQueenside && (occ & Bitboards::BQ_EMPTY) == 0 &&
+            if (cr.blackQueenside && (board.allPieces & Bitboards::BQ_EMPTY) == 0 &&
                 !board.is_in_check(BLACK)) {
               if (!board.attacks_to(D8, enemy_color) && !board.attacks_to(C8, enemy_color)) {
                 moves[n_moves++] = Move(E8, C8, CASTLING);

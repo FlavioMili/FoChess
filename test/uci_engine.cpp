@@ -5,12 +5,9 @@
 //  Read the LICENSE file in the project root please.
 // -----------------------------------------------------------------------------
 
-#pragma once
+#include "uci.h"
 
-#include "board.h"
-
-namespace FoChess {
-
-int bland_evaluate(const Board& board);
-
+int main (int argc, char *argv[]) {
+  UCI::loop();
+  return 0;
 }

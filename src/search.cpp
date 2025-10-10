@@ -14,11 +14,11 @@
 #include "evaluate.h"
 #include "movegen.h"
 
-namespace Search {
+namespace FoChess {
 
 SearchResult negamax(int depth, Board& board) {
   if (depth == 0) {
-    return {Eval::bland_evaluate(board), Move()};
+    return {bland_evaluate(board), Move()};
   }
 
   std::array<Move, MAX_MOVES> moves;

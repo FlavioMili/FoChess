@@ -15,7 +15,7 @@ struct SearchResult {
   Move move;
 };
 
-namespace Search {
+namespace FoChess {
 
 SearchResult negamax(int depth, Board& board);
 
