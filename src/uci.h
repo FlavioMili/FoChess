@@ -80,7 +80,7 @@ void ucinewgame();
   Note: no "new" command is needed. However, if this position is from a different game than
   the last position sent to the engine, the GUI should have sent a "ucinewgame" inbetween.
 */
-void position(std::string startingFen);
+void position(std::string line);
 
 /*
   start calculating on the current position set up with the "position" command.

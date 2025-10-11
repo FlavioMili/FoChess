@@ -24,40 +24,17 @@ void loop() {
   std::string line;
   while (getline(std::cin, line)) {
     if (line == "uci") {
-      std::cout << "id name FoChess\n";
-      std::cout << "id author Flavio Milinanni\n";
-      std::cout << "uciok\n";
+      uci();
     } else if (line == "isready") {
-      std::cout << "readyok\n";
+      isready();
     } else if (line == "ucinewgame") {
-      // reset board / hash
+      ucinewgame();
     } else if (line.rfind("position", 0) == 0) {
-      std::stringstream ss(line);
-      std::string token;
-      ss >> token;  // "position"
-      ss >> token;  // "startpos" or "fen"
-
-      if (token == "startpos") {
-        testboard = FEN::parse();
-      } else if (token == "fen") {
-        std::string fenstr, tmp;
-        while (ss >> tmp && tmp != "moves") {
-          fenstr += tmp + " ";
-        }
-        testboard = FEN::parse(fenstr);
-      }
-
-      // apply moves if present
-      while (ss >> token) {
-        if (token == "moves") continue;
-        testboard.makeMove(PrintingHelpers::uci_to_move(token));
-      }
+      position(line);
     } else if (line.rfind("go", 0) == 0) {
-      // run search, print best move
-      std::string move = PrintingHelpers::move_to_str(FoChess::negamax(5, testboard).move);
-      std::cout << "bestmove " << move << "\n";
+      go();
     } else if (line == "stop") {
-      // handle stop
+      stop();
     } else if (line == "quit") {
       break;
     }
@@ -67,6 +44,50 @@ void loop() {
 /**********************************************************************************
 ********************************** GUI TO ENGINE **********************************
 **********************************************************************************/
+
+void uci() {
+  std::cout << "id name FoChess\n id author Flavio Milinanni\n uciok\n";
+}
+
+void isready() {
+  std::cout << "readyok\n";
+}
+
+void position(std::string line) {
+  std::stringstream ss(line);
+  std::string token;
+  ss >> token;  // "position"
+  ss >> token;  // "startpos" or "fen"
+
+  if (token == "startpos") {
+    testboard = FEN::parse();
+  } else if (token == "fen") {
+    std::string fenstr, tmp;
+    while (ss >> tmp && tmp != "moves") {
+      fenstr += tmp + " ";
+    }
+    testboard = FEN::parse(fenstr);
+  }
+
+  // apply moves if present
+  while (ss >> token) {
+    if (token == "moves") continue;
+    testboard.makeMove(PrintingHelpers::uci_to_move(token));
+  }
+}
+
+void go() {
+  std::string move = PrintingHelpers::move_to_str(FoChess::negamax(5, testboard).move);
+  std::cout << "bestmove " << move << "\n";
+}
+
+void stop() {
+  // i do not know yet 
+}
+
+void ucinewgame() {
+
+}
 
 /**********************************************************************************
 ********************************** ENGINE TO GUI **********************************
