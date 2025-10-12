@@ -17,6 +17,7 @@
 #include "search.h"
 
 static Board testboard = FEN::parse();
+static TranspositionTable tt; 
 
 namespace UCI {
 
@@ -77,7 +78,7 @@ void position(std::string line) {
 }
 
 void go() {
-  std::string move = PrintingHelpers::move_to_str(FoChess::negamax(5, testboard).move);
+  std::string move = PrintingHelpers::move_to_str(FoChess::negamax(7, testboard, tt).move);
   std::cout << "bestmove " << move << "\n";
 }
 

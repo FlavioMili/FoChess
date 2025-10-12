@@ -6,8 +6,10 @@
 // -----------------------------------------------------------------------------
 
 #include "uci.h"
+#include "zobrist.h"
 
 int main (int argc, char *argv[]) {
+  Zobrist::init_zobrist_keys();
   UCI::loop();
   return 0;
 }

@@ -14,16 +14,21 @@
 #include "move.h"
 #include "movegen.h"
 #include "search.h"
+#include "zobrist.h"
 
 int main() {
   Board board = FEN::parse("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -");
+  Zobrist::init_zobrist_keys();
+  TranspositionTable tt;
+
 
   while (true) {
     std::array<Move, MAX_MOVES> moves;
     size_t n = MoveGen::generate_all(board, moves);
     if (n == 0) break;
 
-    SearchResult result = FoChess::negamax(5, board); 
+
+    SearchResult result = FoChess::negamax(5, board, tt);
     board.makeMove(result.move);
 
     PrintingHelpers::printBoard(board);

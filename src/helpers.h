@@ -128,4 +128,13 @@ inline Move uci_to_move(const std::string& s) {
   return Move(from_sq, to_sq);
 }
 
+constexpr uint64_t encode_castling(const CastlingRights& cr) {
+    uint64_t code = 0;
+    if (cr.whiteKingside)  code |= 1 << 0;
+    if (cr.whiteQueenside) code |= 1 << 1;
+    if (cr.blackKingside)  code |= 1 << 2;
+    if (cr.blackQueenside) code |= 1 << 3;
+    return code;
+}
+
 }  // namespace PrintingHelpers

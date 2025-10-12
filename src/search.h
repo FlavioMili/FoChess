@@ -7,8 +7,10 @@
 
 #pragma once
 
+#include <cstdint>
 #include "board.h"
 #include "move.h"
+#include "tt.h"
 
 struct SearchResult {
   int score;
@@ -17,6 +19,7 @@ struct SearchResult {
 
 namespace FoChess {
 
-SearchResult negamax(int depth, Board& board);
+SearchResult negamax(uint8_t depth, Board& board);
+SearchResult negamax(uint8_t depth, Board& board, TranspositionTable& tt);
 
 }
