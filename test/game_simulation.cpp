@@ -7,6 +7,7 @@
 
 #include <array>
 #include <cstddef>
+#include <iostream>
 
 #include "board.h"
 #include "fen.h"
@@ -28,8 +29,9 @@ int main() {
     if (n == 0) break;
 
 
-    SearchResult result = FoChess::negamax(5, board, tt);
+    SearchResult result = FoChess::alpha_beta_pruning(6, board, tt);
     board.makeMove(result.move);
+    std::cout << " best move score: " << result.score << "\n";
 
     PrintingHelpers::printBoard(board);
   }

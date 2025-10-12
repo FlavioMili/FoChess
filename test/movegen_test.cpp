@@ -53,5 +53,9 @@ int main() {
   std::string castlingFEN ="8/4k2P/8/Pp4p1/8/8/8/R3K2R w KQ - 0 1";
   TestBoardGeneration(castlingFEN, 22);
 
+
+  std::string wrongMoveFEN ="rn1qkbnr/7p/1pppbpp1/p7/P1P1PP2/1P6/6PP/RNBQKBNR w KQkq - 0 9";
+  TestBoardGeneration(wrongMoveFEN, 22);
+
   return 0;
 }

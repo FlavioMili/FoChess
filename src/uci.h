@@ -9,11 +9,26 @@
 
 #include <string>
 
-/*
- * Basically in this code I just copy paste what is
- * defined in the UCI protocol in this website
- * https://www.wbec-ridderkerk.nl/html/UCIProtocol.html
- */
+#include "board.h"
+#include "tt.h"
+
+class UCIengine {
+ public:
+  UCIengine();
+  void loop();
+
+ private:
+  void uci();
+  void isready();
+  void position(std::string& line);
+  void go(std::string& line);
+  void stop();
+  void ucinewgame();
+  void info(int depth, int score);
+
+  Board board;
+  TranspositionTable tt;
+};
 
 namespace UCI {
 
@@ -166,100 +181,96 @@ void readyok();
 
 /*
   the engine has stopped searching and found the move  best in this position.
-	the engine can send the move it likes to ponder on. The engine must not start pondering automatically.
-	this command must always be sent if the engine stops searching, also in pondering mode if there is a
-	"stop" command, so for every "go" command a "bestmove" command is needed!
-	Directly before that the engine should send a final "info" command with the final search information,
-	the the GUI has the complete statistics about the last search.
+  the engine can send the move it likes to ponder on. The engine must not start pondering
+  automatically. this command must always be sent if the engine stops searching, also in pondering
+  mode if there is a "stop" command, so for every "go" command a "bestmove" command is needed!
+  Directly before that the engine should send a final "info" command with the final search
+  information, the the GUI has the complete statistics about the last search.
 */
 void bestmove();
 
-
 // void copyprotection(); unused ?
-
 
 // void registration(); not yet, TODO make it in the future
 
 /*
-  the engine wants to send infos to the GUI. This should be done whenever one of the info has changed.
-	The engine can send only selected infos and multiple infos can be send with one info command,
-	e.g. "info currmove e2e4 currmovenumber 1" or
-	     "info depth 12 nodes 123456 nps 100000".
-	Also all infos belonging to the pv should be sent together
-	e.g. "info depth 2 score cp 214 time 1242 nodes 2124 nps 34928 pv e2e4 e7e5 g1f3"
-	I suggest to start sending "currmove", "currmovenumber", "currline" and "refutation" only after one second
-	to avoid too much traffic.
-	Additional info:
-	* depth 
-		search depth in plies
-	* seldepth 
-		selective search depth in plies,
-		if the engine sends seldepth there must also a "depth" be present in the same string.
-	* time 
-		the time searched in ms, this should be sent together with the pv.
-	* nodes 
-		x nodes searched, the engine should send this info regularly
-	* pv  ... 
-		the best line found
-	* multipv 
-		this for the multi pv mode.
-		for the best move/pv add "multipv 1" in the string when you send the pv.
-		in k-best mode always send all k variants in k strings together.
-	* score
-		* cp 
-			the score from the engine's point of view in centipawns.
-		* mate 
-			mate in y moves, not plies.
-			If the engine is getting mated use negativ values for y.
-		* lowerbound
-	      the score is just a lower bound.
-		* upperbound
-		   the score is just an upper bound.
-	* currmove 
-		currently searching this move
-	* currmovenumber 
-		currently searching move number x, for the first move x should be 1 not 0.
-	* hashfull 
-		the hash is x permill full, the engine should send this info regularly
-	* nps 
-		x nodes per second searched, the engine should send this info regularly
-	* tbhits 
-		x positions where found in the endgame table bases
-	* cpuload 
-		the cpu usage of the engine is x permill.
-	* string 
-		any string str which will be displayed be the engine,
-		if there is a string command the rest of the line will be interpreted as .
-	* refutation   ... 
-	   move  is refuted by the line  ... , i can be any number >= 1.
-	   Example: after move d1h5 is searched, the engine can send
-	   "info refutation d1h5 g6h5"
-	   if g6h5 is the best answer after d1h5 or if g6h5 refutes the move d1h5.
-	   if there is norefutation for d1h5 found, the engine should just send
-	   "info refutation d1h5"
-		The engine should only send this if the option "UCI_ShowRefutations" is set to true.
-	* currline   ... 
-	   this is the current line the engine is calculating.  is the number of the cpu if
-	   the engine is running on more than one cpu.  = 1,2,3....
-	   if the engine is just using one cpu,  can be omitted.
-	   If  is greater than 1, always send all k lines in k strings together.
-		The engine should only send this if the option "UCI_ShowCurrLine" is set to true.
+  the engine wants to send infos to the GUI. This should be done whenever one of the info has
+  changed. The engine can send only selected infos and multiple infos can be send with one info
+  command, e.g. "info currmove e2e4 currmovenumber 1" or "info depth 12 nodes 123456 nps 100000".
+  Also all infos belonging to the pv should be sent together
+  e.g. "info depth 2 score cp 214 time 1242 nodes 2124 nps 34928 pv e2e4 e7e5 g1f3"
+  I suggest to start sending "currmove", "currmovenumber", "currline" and "refutation" only after
+  one second to avoid too much traffic. Additional info:
+  * depth
+    search depth in plies
+  * seldepth
+    selective search depth in plies,
+    if the engine sends seldepth there must also a "depth" be present in the same string.
+  * time
+    the time searched in ms, this should be sent together with the pv.
+  * nodes
+    x nodes searched, the engine should send this info regularly
+  * pv  ...
+    the best line found
+  * multipv
+    this for the multi pv mode.
+    for the best move/pv add "multipv 1" in the string when you send the pv.
+    in k-best mode always send all k variants in k strings together.
+  * score
+    * cp
+      the score from the engine's point of view in centipawns.
+    * mate
+      mate in y moves, not plies.
+      If the engine is getting mated use negativ values for y.
+    * lowerbound
+        the score is just a lower bound.
+    * upperbound
+     the score is just an upper bound.
+  * currmove
+    currently searching this move
+  * currmovenumber
+    currently searching move number x, for the first move x should be 1 not 0.
+  * hashfull
+    the hash is x permill full, the engine should send this info regularly
+  * nps
+    x nodes per second searched, the engine should send this info regularly
+  * tbhits
+    x positions where found in the endgame table bases
+  * cpuload
+    the cpu usage of the engine is x permill.
+  * string
+    any string str which will be displayed be the engine,
+    if there is a string command the rest of the line will be interpreted as .
+  * refutation   ...
+     move  is refuted by the line  ... , i can be any number >= 1.
+     Example: after move d1h5 is searched, the engine can send
+     "info refutation d1h5 g6h5"
+     if g6h5 is the best answer after d1h5 or if g6h5 refutes the move d1h5.
+     if there is norefutation for d1h5 found, the engine should just send
+     "info refutation d1h5"
+    The engine should only send this if the option "UCI_ShowRefutations" is set to true.
+  * currline   ...
+     this is the current line the engine is calculating.  is the number of the cpu if
+     the engine is running on more than one cpu.  = 1,2,3....
+     if the engine is just using one cpu,  can be omitted.
+     If  is greater than 1, always send all k lines in k strings together.
+    The engine should only send this if the option "UCI_ShowCurrLine" is set to true.
 */
 void info();
 
 /*
   This command tells the GUI which parameters can be changed in the engine.
-	This should be sent once at engine startup after the "uci" and the "id" commands
-	if any parameter can be changed in the engine.
-	The GUI should parse this and build a dialog for the user to change the settings.
-	Note that not every option needs to appear in this dialog as some options like
-	"Ponder", "UCI_AnalyseMode", etc. are better handled elsewhere or are set automatically.
-	If the user wants to change some settings, the GUI will send a "setoption" command to the engine.
-	Note that the GUI need not send the setoption command when starting the engine for every option if
-	it doesn't want to change the default value.
-	For all allowed combinations see the example below,
-	as some combinations of this tokens don't make sense.
-	One string will be sent for each parameter.
+  This should be sent once at engine startup after the "uci" and the "id" commands
+  if any parameter can be changed in the engine.
+  The GUI should parse this and build a dialog for the user to change the settings.
+  Note that not every option needs to appear in this dialog as some options like
+  "Ponder", "UCI_AnalyseMode", etc. are better handled elsewhere or are set automatically.
+  If the user wants to change some settings, the GUI will send a "setoption" command to the engine.
+  Note that the GUI need not send the setoption command when starting the engine for every option if
+  it doesn't want to change the default value.
+  For all allowed combinations see the example below,
+  as some combinations of this tokens don't make sense.
+  One string will be sent for each parameter.
 */
 void option();
 

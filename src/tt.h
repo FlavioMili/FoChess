@@ -1,51 +1,67 @@
-#pragma once
+// -----------------------------------------------------------------------------
+//  FoChess
+//  Copyright (c) 2025 Flavio Milinanni. All Rights Reserved.
+//
+//  Read the LICENSE file in the project root please.
+// -----------------------------------------------------------------------------
 
-#include <sys/types.h>
+#pragma once
 
 #include <cstdint>
 #include <vector>
 
-#include "bitboard.h"
 #include "move.h"
 
-constexpr size_t TTSize = 1 << 2;
-
-struct TTFlags {
-  uint8_t exact : 1;
-  uint8_t lowerbound : 1;
-  uint8_t upperbound : 1;
-  uint8_t unused : 5;
-
-  constexpr TTFlags() : exact(0), lowerbound(0), upperbound(0), unused(0) {}
-  constexpr TTFlags(bool e, bool l, bool u) : exact(e), lowerbound(l), upperbound(u), unused(0) {}
+enum TTFlag : uint8_t {
+  TT_NONE = 0,
+  TT_EXACT = 1,
+  TT_ALPHA = 2,
+  TT_BETA = 3,
 };
 
 struct TTEntry {
-  Bitboard hash_key;
+  uint64_t hash_key;
   int score;
-  Move move;
+  Move best_move;
   uint8_t depth;
-  TTFlags flags;
+  TTFlag flag;
+
+  TTEntry() : hash_key(0), score(0), best_move(), depth(0), flag(TT_NONE) {}
 };
 
 class TranspositionTable {
  public:
-  explicit TranspositionTable(size_t size = 1 << 20) : TT(size) {}
-
-  void store(Bitboard key, int score, Move bestMove, uint8_t depth, TTFlags flag) {
-    size_t idx = key & (TT.size() - 1);
-    TT[idx] = {key, score, bestMove, depth, flag};
+  explicit TranspositionTable(size_t mb_size = 64) {
+    size_t num_entries = (mb_size * 1024 * 1024) / sizeof(TTEntry);
+    // Round down to power of 2
+    num_entries = 1ULL << (63 - __builtin_clzll(num_entries));
+    table.resize(num_entries);
+    mask = num_entries - 1;
   }
 
-  TTEntry* probe(Bitboard key) {
-    TTEntry& entry = TT[key & (TT.size() - 1)];
+  void store(uint64_t key, int score, Move move, uint8_t depth, TTFlag flag) {
+    size_t index = key & mask;
+    TTEntry& entry = table[index];
+    if (entry.hash_key != key || depth >= entry.depth) {
+      entry.hash_key = key;
+      entry.score = score;
+      entry.best_move = move;
+      entry.depth = depth;
+      entry.flag = flag;
+    }
+  }
+
+  TTEntry* probe(uint64_t key) {
+    size_t index = key & mask;
+    TTEntry& entry = table[index];
     return (entry.hash_key == key) ? &entry : nullptr;
   }
 
   void clear() {
-    std::fill(TT.begin(), TT.end(), TTEntry{});
+    std::fill(table.begin(), table.end(), TTEntry());
   }
 
  private:
-  std::vector<TTEntry> TT;
+  std::vector<TTEntry> table;
+  size_t mask;
 };

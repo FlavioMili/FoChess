@@ -7,21 +7,17 @@
 
 #include "uci.h"
 
+#include <cstdint>
 #include <iostream>
 #include <sstream>
 #include <string>
 
-#include "board.h"
 #include "fen.h"
 #include "helpers.h"
 #include "search.h"
 
-static Board testboard = FEN::parse();
-static TranspositionTable tt; 
-
-namespace UCI {
-
-void loop() {
+UCIengine::UCIengine() : board(FEN::parse()), tt() {}
+void UCIengine::loop() {
   std::string line;
   while (getline(std::cin, line)) {
     if (line == "uci") {
@@ -33,7 +29,7 @@ void loop() {
     } else if (line.rfind("position", 0) == 0) {
       position(line);
     } else if (line.rfind("go", 0) == 0) {
-      go();
+      go(line);
     } else if (line == "stop") {
       stop();
     } else if (line == "quit") {
@@ -42,55 +38,71 @@ void loop() {
   }
 }
 
-/**********************************************************************************
-********************************** GUI TO ENGINE **********************************
-**********************************************************************************/
-
-void uci() {
+void UCIengine::uci() {
   std::cout << "id name FoChess\n id author Flavio Milinanni\n uciok\n";
 }
 
-void isready() {
+void UCIengine::isready() {
   std::cout << "readyok\n";
 }
 
-void position(std::string line) {
+void UCIengine::position(std::string& line) {
   std::stringstream ss(line);
   std::string token;
   ss >> token;  // "position"
   ss >> token;  // "startpos" or "fen"
 
   if (token == "startpos") {
-    testboard = FEN::parse();
+    board = FEN::parse();
   } else if (token == "fen") {
     std::string fenstr, tmp;
     while (ss >> tmp && tmp != "moves") {
       fenstr += tmp + " ";
     }
-    testboard = FEN::parse(fenstr);
+    board = FEN::parse(fenstr);
   }
 
   // apply moves if present
   while (ss >> token) {
     if (token == "moves") continue;
-    testboard.makeMove(PrintingHelpers::uci_to_move(token));
+    board.makeMove(PrintingHelpers::uci_to_move(token));
   }
 }
 
-void go() {
-  std::string move = PrintingHelpers::move_to_str(FoChess::negamax(7, testboard, tt).move);
-  std::cout << "bestmove " << move << "\n";
+void UCIengine::go(std::string& line) {
+  std::stringstream ss(line);
+  std::string token;
+  ss >> token;  // Skip "go"
+
+  uint8_t depth = 8;
+
+  while (ss >> token) {
+    if (token == "depth") {
+      int temp_depth;
+      ss >> temp_depth;
+      depth = static_cast<uint8_t>(temp_depth);
+    }
+    // TODO: Add other UCI parameters like movetime, wtime, btime, etc.
+  }
+
+  auto result = FoChess::alpha_beta_pruning(depth, board, tt);
+  info(depth, result.score);
+  std::string move_str = PrintingHelpers::move_to_str(result.move);
+  std::cout << "bestmove " << move_str << std::endl;
 }
 
-void stop() {
-  // i do not know yet 
+void UCIengine::info(int depth, int score) {
+  double eval = score / 100.0;
+  std::cout << "info depth " << static_cast<int>(depth) << " score cp " << score << " curr_eval "
+            << eval << std::endl;
 }
 
-void ucinewgame() {
-
+void UCIengine::stop() {
+  // TODO: Implement stop functionality
 }
 
-/**********************************************************************************
-********************************** ENGINE TO GUI **********************************
-**********************************************************************************/
-}  // namespace UCI
+void UCIengine::ucinewgame() {
+  board = FEN::parse();
+  tt.clear();
+  // TODO: Implement any other necessary new game logic
+}
