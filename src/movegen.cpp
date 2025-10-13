@@ -26,13 +26,6 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
   const Bitboard enemy = board.occupancy[enemy_color];
   const Bitboard empty = ~board.allPieces;
 
-  // Helper lambda to test if a move is legal by making it on a temporary board
-
-  auto is_legal = [&](const Move& m) -> bool {
-    Board tmp = board;
-    tmp.makeMove(m);
-    return !tmp.is_in_check(friendly_color);
-  };
 
   auto add_promotions = [&](Square from, Square to) {
     candidate_moves[n_candidate_moves++] = Move(from, to, QUEEN);
@@ -168,10 +161,8 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
   }
   size_t idx = 0;
   for (size_t i = 0; i < n_candidate_moves; ++i) {
-    if (is_legal(candidate_moves[i])) {
-      moves[idx] = candidate_moves[i];
-      ++idx;
-    }
+    Board tmp = board; tmp.makeMove(candidate_moves[i]);
+    if (!tmp.is_in_check(friendly_color)) moves[idx++] = candidate_moves[i];
   }
   return idx;
 }
