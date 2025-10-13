@@ -32,4 +32,7 @@ SearchResult alpha_beta_pruning(uint8_t depth, Board& board, int alpha = INT_MIN
 SearchResult alpha_beta_pruning(uint8_t depth, Board& board, TranspositionTable& tt,
                                 int alpha = INT_MIN + 1, int beta = INT_MAX);
 
+
+inline int nodes = 0;
+
 }  // namespace FoChess

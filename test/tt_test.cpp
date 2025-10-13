@@ -36,7 +36,7 @@ int main() {
 
   assert(Zobrist::generate_hash(board1) == Zobrist::generate_hash(board2));
 
-  TranspositionTable tt(1 << 20);
+  TranspositionTable tt;
 
   SearchResult result1 = FoChess::negamax(5, board1, tt);
   SearchResult result2 = FoChess::negamax(5, board2, tt);

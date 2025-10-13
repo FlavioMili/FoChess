@@ -93,8 +93,11 @@ void UCIengine::go(std::string& line) {
 
 void UCIengine::info(int depth, int score) {
   double eval = score / 100.0;
-  std::cout << "info depth " << static_cast<int>(depth) << " score cp " << score << " curr_eval "
-            << eval << std::endl;
+  std::cout << "info depth " << static_cast<int>(depth)
+            << " score cp " << score
+            << " curr_eval " << eval
+            << " nodes " << FoChess::nodes
+            << std::endl;
 }
 
 void UCIengine::stop() {

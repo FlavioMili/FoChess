@@ -6,6 +6,7 @@
 // -----------------------------------------------------------------------------
 
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <iostream>
 
@@ -19,19 +20,25 @@
 
 int main() {
   Board board = FEN::parse("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -");
-  Zobrist::init_zobrist_keys();
-  TranspositionTable tt;
 
+  Zobrist::init_zobrist_keys();
+  TranspositionTable tt(300);
 
   while (true) {
     std::array<Move, MAX_MOVES> moves;
     size_t n = MoveGen::generate_all(board, moves);
     if (n == 0) break;
 
+    FoChess::nodes = 0;
+    auto start = std::chrono::high_resolution_clock::now();
+    SearchResult result = FoChess::alpha_beta_pruning(4, board, tt);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end - start;
 
-    SearchResult result = FoChess::alpha_beta_pruning(6, board, tt);
+
     board.makeMove(result.move);
-    std::cout << " best move score: " << result.score << "\n";
+    std::cout << "best move score: " << result.score
+              << " nodes/sec: " << static_cast<double>(FoChess::nodes) / elapsed.count() << "\n";
 
     PrintingHelpers::printBoard(board);
   }

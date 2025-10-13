@@ -169,10 +169,16 @@ void Board::makeMove(const Move& m) {
 
   } 
   else if (pt == PAWN) {  // check for en passant
-    if (us == WHITE && to == Bitboards::up(Bitboards::up(from))) {
-      enPassant = Bitboards::up(from);
-    } else if (us == BLACK && to == Bitboards::down(Bitboards::down(from))) {
-      enPassant = Bitboards::down(from);
+    if (us == WHITE) {
+      // White double-step from rank 2
+      if ((from & Bitboards::RANK_2) && to == Bitboards::up(Bitboards::up(from))) {
+        enPassant = Bitboards::up(from);  // the square behind the pawn
+      }
+    } else { // BLACK
+      // Black double-step from rank 7
+      if ((from & Bitboards::RANK_7) && to == Bitboards::down(Bitboards::down(from))) {
+        enPassant = Bitboards::down(from);  // the square behind the pawn
+      }
     }
   }
 

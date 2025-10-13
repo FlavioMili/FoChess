@@ -8,7 +8,7 @@
 #include <cstddef>
 #include "board.h"
 #include "types.h"
-
+  
 namespace FoChess {
 
 int bland_evaluate(const Board& board) {
