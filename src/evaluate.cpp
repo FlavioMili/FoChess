@@ -23,8 +23,7 @@ int bland_evaluate(const Board& board) {
              __builtin_popcountll(board.pieces[BLACK][pt]) * val;
   }
 
-  if (board.is_in_check(board.sideToMove)) score -= 200;
-  if (board.is_in_check(static_cast<Color>(!board.sideToMove))) score += 200;
+  // if (board.is_in_check(static_cast<Color>(!board.sideToMove))) score += 200;
 
   return (board.sideToMove == WHITE) ? score : -score;
 }

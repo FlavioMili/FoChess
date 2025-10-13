@@ -7,6 +7,7 @@
 
 #include "movegen.h"
 
+#include <array>
 #include <cstddef>
 
 #include "bitboard.h"
@@ -15,7 +16,9 @@
 namespace MoveGen {
 
 size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
-  size_t n_moves = 0;
+  size_t n_candidate_moves = 0;
+  std::array<Move, MAX_MOVES> candidate_moves;
+
   const Color friendly_color = board.sideToMove;
   const Color enemy_color = (friendly_color == WHITE) ? BLACK : WHITE;
 
@@ -24,23 +27,18 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
   const Bitboard empty = ~board.allPieces;
 
   // Helper lambda to test if a move is legal by making it on a temporary board
+
   auto is_legal = [&](const Move& m) -> bool {
     Board tmp = board;
     tmp.makeMove(m);
     return !tmp.is_in_check(friendly_color);
   };
 
-  auto add_promotions_if_legal = [&](Square from, Square to) {
-    // Check once with queen (most common promotion)
-    Move test = Move(from, to, QUEEN);
-    Board tmp = board;
-    tmp.makeMove(test);
-    if (!tmp.is_in_check(friendly_color)) {
-      moves[n_moves++] = Move(from, to, QUEEN);
-      moves[n_moves++] = Move(from, to, ROOK);
-      moves[n_moves++] = Move(from, to, BISHOP);
-      moves[n_moves++] = Move(from, to, KNIGHT);
-    }
+  auto add_promotions = [&](Square from, Square to) {
+    candidate_moves[n_candidate_moves++] = Move(from, to, QUEEN);
+    candidate_moves[n_candidate_moves++] = Move(from, to, ROOK);
+    candidate_moves[n_candidate_moves++] = Move(from, to, BISHOP);
+    candidate_moves[n_candidate_moves++] = Move(from, to, KNIGHT);
   };
 
   // Generate moves for each piece type
@@ -58,11 +56,10 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
           Bitboard pushes = Bitboards::pawn_moves(from, friendly_color, empty);
           while (pushes) {
             Square to = static_cast<Square>(__builtin_ctzll(pushes));
-            if (Bitboards::rank_of(to) == promotion_rank) {
-              add_promotions_if_legal(from, to);
+            if (Bitboards::rank_of(to) == promotion_rank) [[unlikely]] {
+              add_promotions(from, to);
             } else {
-              Move m = Move(from, to);
-              if (is_legal(m)) moves[n_moves++] = m;
+              candidate_moves[n_candidate_moves++] = Move(from, to);
             }
             pushes &= pushes - 1;
           }
@@ -71,11 +68,10 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
           Bitboard attacks = Bitboards::pawn_attacks(from, friendly_color, enemy);
           while (attacks) {
             Square to = static_cast<Square>(__builtin_ctzll(attacks));
-            if (Bitboards::rank_of(to) == promotion_rank) {
-              add_promotions_if_legal(from, to);
+            if (Bitboards::rank_of(to) == promotion_rank) [[unlikely]] {
+              add_promotions(from, to);
             } else {
-              Move m = Move(from, to);
-              if (is_legal(m)) moves[n_moves++] = m;
+              candidate_moves[n_candidate_moves++] = Move(from, to);
             }
             attacks &= attacks - 1;
           }
@@ -84,10 +80,7 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
           // --- En passant ---
           if (enp != NO_SQUARE &&
               Bitboards::pawn_attacks_mask(from, friendly_color) & Bitboards::square_bb(enp)) {
-            Move m = Move(from, enp, EN_PASSANT);
-            if (is_legal(m)) {
-              moves[n_moves++] = m;
-            }
+            candidate_moves[n_candidate_moves++] = Move(from, enp, EN_PASSANT);
           }
           break;
         }
@@ -95,8 +88,7 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
           targets = Bitboards::knight_moves(from, friendly);
           while (targets) {
             Square to = static_cast<Square>(__builtin_ctzll(targets));
-            Move m = Move(from, to);
-            if (is_legal(m)) moves[n_moves++] = m;
+            candidate_moves[n_candidate_moves++] = Move(from, to);
             targets &= targets - 1;
           }
           break;
@@ -105,8 +97,8 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
           targets = Bitboards::bishop_moves(from, board.allPieces, friendly);
           while (targets) {
             Square to = static_cast<Square>(__builtin_ctzll(targets));
-            Move m = Move(from, to);
-            if (is_legal(m)) moves[n_moves++] = m;
+            candidate_moves[n_candidate_moves++] = Move(from, to);
+            ;
             targets &= targets - 1;
           }
           break;
@@ -115,8 +107,7 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
           targets = Bitboards::rook_moves(from, board.allPieces, friendly);
           while (targets) {
             Square to = static_cast<Square>(__builtin_ctzll(targets));
-            Move m = Move(from, to);
-            if (is_legal(m)) moves[n_moves++] = m;
+            candidate_moves[n_candidate_moves++] = Move(from, to);
             targets &= targets - 1;
           }
           break;
@@ -125,8 +116,7 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
           targets = Bitboards::queen_moves(from, board.allPieces, friendly);
           while (targets) {
             Square to = static_cast<Square>(__builtin_ctzll(targets));
-            Move m = Move(from, to);
-            if (is_legal(m)) moves[n_moves++] = m;
+            candidate_moves[n_candidate_moves++] = Move(from, to);
             targets &= targets - 1;
           }
           break;
@@ -135,46 +125,55 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
           targets = Bitboards::king_moves(from, friendly);
           while (targets) {
             Square to = static_cast<Square>(__builtin_ctzll(targets));
-            Move m = Move(from, to);
-            if (is_legal(m)) moves[n_moves++] = m;
+            candidate_moves[n_candidate_moves++] = Move(from, to);
             targets &= targets - 1;
           }
 
           // Castling
           CastlingRights cr = board.castling;
           if (friendly_color == WHITE) {
-            if (cr.whiteKingside && (board.allPieces & Bitboards::WK_EMPTY) == 0 && !board.is_in_check(WHITE)) {
+            if (cr.whiteKingside && (board.allPieces & Bitboards::WK_EMPTY) == 0 &&
+                !board.is_in_check(WHITE)) {
               if (!board.attacks_to(F1, enemy_color) && !board.attacks_to(G1, enemy_color)) {
-                moves[n_moves++] = Move(E1, G1, CASTLING);
+                candidate_moves[n_candidate_moves++] = Move(E1, G1, CASTLING);
               }
             }
             if (cr.whiteQueenside && (board.allPieces & Bitboards::WQ_EMPTY) == 0 &&
                 !board.is_in_check(WHITE)) {
               if (!board.attacks_to(D1, enemy_color) && !board.attacks_to(C1, enemy_color)) {
-                moves[n_moves++] = Move(E1, C1, CASTLING);
+                candidate_moves[n_candidate_moves++] = Move(E1, C1, CASTLING);
               }
             }
           } else {  // BLACK
-            if (cr.blackKingside && (board.allPieces & Bitboards::BK_EMPTY) == 0 && !board.is_in_check(BLACK)) {
+            if (cr.blackKingside && (board.allPieces & Bitboards::BK_EMPTY) == 0 &&
+                !board.is_in_check(BLACK)) {
               if (!board.attacks_to(F8, enemy_color) && !board.attacks_to(G8, enemy_color)) {
-                moves[n_moves++] = Move(E8, G8, CASTLING);
+                candidate_moves[n_candidate_moves++] = Move(E8, G8, CASTLING);
               }
             }
             if (cr.blackQueenside && (board.allPieces & Bitboards::BQ_EMPTY) == 0 &&
                 !board.is_in_check(BLACK)) {
               if (!board.attacks_to(D8, enemy_color) && !board.attacks_to(C8, enemy_color)) {
-                moves[n_moves++] = Move(E8, C8, CASTLING);
+                candidate_moves[n_candidate_moves++] = Move(E8, C8, CASTLING);
               }
             }
           }
           break;
         }
-        default: break;
+        default:
+          break;
       }
       bb &= bb - 1;
     }
   }
-  return n_moves;
+  size_t idx = 0;
+  for (size_t i = 0; i < n_candidate_moves; ++i) {
+    if (is_legal(candidate_moves[i])) {
+      moves[idx] = candidate_moves[i];
+      ++idx;
+    }
+  }
+  return idx;
 }
 
 }  // namespace MoveGen
