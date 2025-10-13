@@ -15,21 +15,20 @@
 #include "fen.h"
 #include "helpers.h"
 #include "movegen.h"
+#include "types.h"
 
-#ifdef DEBUG
 int captures = 0;
 int checks = 0;
-#endif
 
 size_t perft(Board& board, int depth) {
   // non-bulk calculating
-  // if (depth == 0) return 1;
+  if (depth == 0) return 1;
 
   std::array<Move, MAX_MOVES> moves;
   size_t n = MoveGen::generate_all(board, moves);
 
   // bulk calculating
-  if (depth == 1) return n;
+  // if (depth == 1) return n;
 
   uint64_t nodes = 0;
 
@@ -38,12 +37,10 @@ size_t perft(Board& board, int depth) {
     Board copy = board;
     copy.makeMove(move);
 
-#ifdef DEBUG
-    captures += copy.was_captured;
-    if (copy.is_in_check(copy.sideToMove)) {
-      checks++;
+    if (depth == 1) {
+      captures += (copy.captured_piece != NO_PIECE);
+      checks += (copy.is_in_check(copy.sideToMove));
     }
-#endif
 
     nodes += perft(copy, depth - 1);
   }
@@ -69,10 +66,8 @@ int main(int argc, char** argv) {
     Board copy = board;
     copy.makeMove(move);
 
-#ifdef DEBUG
     int capturesBefore = captures;
     int checksBefore = checks;
-#endif
 
     // Count nodes under this move
     uint64_t nodes = perft(copy, depth - 1);
@@ -81,19 +76,15 @@ int main(int argc, char** argv) {
     // Print per-root-move count
     std::cout << std::left << std::setw(6) << PrintingHelpers::move_to_str(move) << ": " << nodes;
 
-#ifdef DEBUG
     std::cout << " (captures: " << captures - capturesBefore <<
       ", checks: " << checks - checksBefore << ")";
-#endif
 
     std::cout << '\n';
   }
 
   std::cout << "\nTotal nodes: " << totalNodes << "\n";
-#ifdef DEBUG
   std::cout << "Total captures: " << captures << "\n";
   std::cout << "Total checks: " << checks << "\n";
-#endif
 
   return 0;
 }

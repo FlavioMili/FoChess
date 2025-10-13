@@ -9,6 +9,7 @@
 
 #include "board.h"
 #include "movegen.h"
+#include "types.h"
 
 
 enum MoveScore : int {
@@ -41,14 +42,10 @@ inline int score_move(const Move& m, const Board& board, const Move& tt_move) {
   if (m == tt_move) return SCORE_TT_MOVE;
   
   const Square from = m.from_sq();
-  const Square to = m.to_sq();
   const Piece moved = board.piece_on(from);
-  const Color us = board.sideToMove;
-  const Color them = (us == WHITE) ? BLACK : WHITE;
   
   int score = SCORE_QUIET;
   
-  // Promotions
   if (m.type() == MoveType::PROMOTION) [[unlikely]] {
     if (m.promotion_type() == QUEEN) {
       score = SCORE_QUEEN_PROMOTION;
@@ -57,20 +54,15 @@ inline int score_move(const Move& m, const Board& board, const Move& tt_move) {
     }
   }
   
-  // Captures (including en passant)
-  if ((board.occupancy[them] & Bitboards::square_bb(to)) || 
-      m.type() == MoveType::EN_PASSANT) {
-    Piece captured = (m.type() == MoveType::EN_PASSANT) 
-                     ? PAWN 
-                     : board.piece_on(to);
-    score = SCORE_WINNING_CAPTURE + mvv_lva(moved, captured);
+  if (board.captured_piece != NO_PIECE) {
+    score = SCORE_WINNING_CAPTURE + mvv_lva(moved, board.captured_piece);
   }
   
   // Check if move gives check
   if (score == SCORE_QUIET) {
     Board tmp = board;
     tmp.makeMove(m);
-    if (tmp.is_in_check(them)) {
+    if (tmp.is_in_check(static_cast<Color>(!board.sideToMove))) {
       score = SCORE_CHECK;
     }
   }

@@ -31,6 +31,9 @@ struct TTEntry {
 
 class TranspositionTable {
  public:
+#ifdef DEBUG
+  int hits = 0;
+#endif
   explicit TranspositionTable(size_t mb_size = 64) {
     size_t num_entries = (mb_size * 1024 * 1024) / sizeof(TTEntry);
     // Round down to power of 2
@@ -54,10 +57,19 @@ class TranspositionTable {
   TTEntry* probe(uint64_t key) {
     size_t index = key & mask;
     TTEntry& entry = table[index];
-    return (entry.hash_key == key) ? &entry : nullptr;
+    if (entry.hash_key == key) {
+#ifdef DEBUG
+      hits++;
+#endif
+      return &entry;
+    }
+    return nullptr;
   }
 
   void clear() {
+#ifdef DEBUG
+    hits = 0;
+#endif
     std::fill(table.begin(), table.end(), TTEntry());
   }
 

@@ -7,7 +7,6 @@
 
 #include "board.h"
 
-#include <cstddef>
 
 #include "bitboard.h"
 #include "move.h"
@@ -24,61 +23,6 @@ Board::Board()
   enPassant(Square::NO_SQUARE),
   sideToMove(Color::WHITE) {}
 
-void Board::updateOccupancy() {
-  occupancy[WHITE] = pieces[WHITE][PAWN] | pieces[WHITE][KNIGHT] | pieces[WHITE][BISHOP] |
-                     pieces[WHITE][ROOK] | pieces[WHITE][QUEEN] | pieces[WHITE][KING];
-
-  occupancy[BLACK] = pieces[BLACK][PAWN] | pieces[BLACK][KNIGHT] | pieces[BLACK][BISHOP] |
-                     pieces[BLACK][ROOK] | pieces[BLACK][QUEEN] | pieces[BLACK][KING];
-
-  allPieces = occupancy[WHITE] | occupancy[BLACK];
-}
-
-Bitboard Board::attacks_to(Square sq, Color attacker_color) const {
-  Bitboard attackers = 0;
-
-  attackers |= Bitboards::pawn_attacks_mask(sq, static_cast<Color>(BLACK - attacker_color)) &
-    pieces[attacker_color][PAWN];
-  attackers |= Bitboards::knight_attacks(sq) & pieces[attacker_color][KNIGHT];
-  attackers |= Bitboards::king_attacks(sq) & pieces[attacker_color][KING];
-  attackers |= Bitboards::bishop_attacks(sq, allPieces) &
-    (pieces[attacker_color][BISHOP] | pieces[attacker_color][QUEEN]);
-  attackers |= Bitboards::rook_attacks(sq, allPieces) &
-    (pieces[attacker_color][ROOK] | pieces[attacker_color][QUEEN]);
-
-  return attackers;
-}
-
-bool Board::is_in_check(Color c) const {
-  Bitboard king_bb = pieces[c][KING];
-  if (!king_bb) return false;
-
-  Square kingSquare = static_cast<Square>(__builtin_ctzll(king_bb));
-  Color enemy = Color(BLACK - c);
-
-  return attacks_to(kingSquare, enemy) != 0;
-}
-
-Color Board::color_on(Square sq) const {
-  Bitboard sq_bb = Bitboards::square_bb(sq);
-  if (occupancy[WHITE] & sq_bb) return WHITE;
-  if (occupancy[BLACK] & sq_bb) return BLACK;
-  return NO_COLOR;
-}
-
-Piece Board::piece_on(Square sq) const {
-  Bitboard sq_bb = Bitboards::square_bb(sq);
-
-  for (size_t color = WHITE; color <= BLACK; ++color) {
-    for (size_t pt = PAWN; pt <= KING; ++pt) {
-      if (pieces[color][pt] & sq_bb) {
-        return static_cast<Piece>(pt);
-      }
-    }
-  }
-  return NO_PIECE;
-}
-
 void Board::makeMove(const Move& m) {
   Square from = m.from_sq(), to = m.to_sq();
   Color us = sideToMove, them = Color(BLACK - us);
@@ -91,22 +35,20 @@ void Board::makeMove(const Move& m) {
 
   // Clear en passant (will be set again if this is a double pawn push)
   enPassant = NO_SQUARE;
+  captured_piece = NO_PIECE;
 
-  const bool is_capture = (occupancy[them] & to_bb) != 0;
+  const Bitboard is_capture = (occupancy[them] & to_bb);
+
 
   // Update half-move clock (reset on pawn move or capture)
   halfMoveClock = (pt == PAWN || is_capture) ? 0 : halfMoveClock + 1;
 
-#ifdef DEBUG
-  was_captured = is_capture;
-#endif
-
   if (is_capture) {
-    Piece captured = piece_on(to);
-    pieces[them][captured] &= ~to_bb;
+    captured_piece = piece_on(to);
+    pieces[them][captured_piece] &= ~to_bb;
 
     // Update castling rights if rook captured
-    if (captured == ROOK) [[unlikely]] {
+    if (captured_piece == ROOK) [[unlikely]] {
       if (to == Square::A1) castling.whiteQueenside = false;
       else if (to == Square::H1) castling.whiteKingside = false;
       else if (to == Square::A8) castling.blackQueenside = false;
@@ -128,6 +70,7 @@ void Board::makeMove(const Move& m) {
 
       case MoveType::EN_PASSANT: {
         Square capturedSq = (us == WHITE) ? Bitboards::down(to) : Bitboards::up(to);
+        captured_piece = PAWN;
         pieces[them][PAWN] &= ~Bitboards::square_bb(capturedSq);
         break;
       }
@@ -171,12 +114,12 @@ void Board::makeMove(const Move& m) {
   else if (pt == PAWN) {  // check for en passant
     if (us == WHITE) {
       // White double-step from rank 2
-      if ((from & Bitboards::RANK_2) && to == Bitboards::up(Bitboards::up(from))) {
+      if ((from_bb & Bitboards::RANK_2) && to == Bitboards::up(Bitboards::up(from))) {
         enPassant = Bitboards::up(from);  // the square behind the pawn
       }
     } else { // BLACK
       // Black double-step from rank 7
-      if ((from & Bitboards::RANK_7) && to == Bitboards::down(Bitboards::down(from))) {
+      if ((from_bb & Bitboards::RANK_7) && to == Bitboards::down(Bitboards::down(from))) {
         enPassant = Bitboards::down(from);  // the square behind the pawn
       }
     }
