@@ -25,7 +25,7 @@ Bitboard generate_hash(const Board& board) {
       while (bb) {
         size_t sq = static_cast<size_t>(__builtin_ctzll(bb));
         bb &= bb - 1;
-        hash ^= pieces_keys[c][p][sq];
+        hash ^= pieces_keys[piece_to_idx(c, p, sq)];
       }
     }
   }

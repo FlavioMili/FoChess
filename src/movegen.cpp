@@ -160,8 +160,10 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
     }
   }
   size_t idx = 0;
+  Board tmp = board; 
   for (size_t i = 0; i < n_candidate_moves; ++i) {
-    Board tmp = board; tmp.makeMove(candidate_moves[i]);
+    tmp = board;
+    tmp.makeMove(candidate_moves[i]);
     if (!tmp.is_in_check(friendly_color)) moves[idx++] = candidate_moves[i];
   }
   return idx;

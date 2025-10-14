@@ -37,6 +37,7 @@ size_t perft(Board& board, int depth) {
     Board copy = board;
     copy.makeMove(move);
 
+    // If I comment this out I reach 46M nodes/sec
     if (depth == 1) {
       captures += (copy.captured_piece != NO_PIECE);
       checks += (copy.is_in_check(copy.sideToMove));

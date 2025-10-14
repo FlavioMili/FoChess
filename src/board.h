@@ -36,7 +36,7 @@ struct Board {
 
   Bitboard attacks_to(Square sq, Color attacker_color) const;
 
-  bool is_in_check(Color c) const;
+inline bool is_in_check(Color c) const noexcept __attribute__((always_inline));
 
   Color color_on(Square sq) const;
   Piece piece_on(Square sq) const;
@@ -80,7 +80,7 @@ inline Bitboard Board::attacks_to(Square sq, Color attacker_color) const {
   return attackers;
 }
 
-inline bool Board::is_in_check(Color c) const {
+inline bool Board::is_in_check(Color c) const noexcept {
   Bitboard king_bb = pieces[c][KING];
   if (!king_bb) return false;
 

@@ -34,7 +34,7 @@ int main() {
     tt.hits = 0;
 #endif
     auto start = std::chrono::high_resolution_clock::now();
-    SearchResult result = FoChess::alpha_beta_pruning(4, board, tt);
+    SearchResult result = FoChess::alpha_beta_pruning(6, board, tt);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
 

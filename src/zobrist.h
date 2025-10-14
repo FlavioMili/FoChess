@@ -13,7 +13,7 @@
 #include "bitboard.h"
 #include "board.h"
 
-constexpr int SEED = 0xC0FFEE;
+constexpr int SEED = 0xF0CE55;
 
 namespace Zobrist {
 
@@ -27,14 +27,14 @@ constexpr uint64_t splitmix64(uint64_t& state) {
 }
 
 constexpr auto init_pieces() {
-  std::array<std::array<std::array<uint64_t, 64>, 6>, 2> pieces{};
-
+  std::array<uint64_t, 2 * 6 * 64> pieces{};
   uint64_t state = SEED;
-  for (size_t c = 0; c < 2; ++c)
-    for (size_t p = 0; p < 6; ++p)
-      for (size_t sq = 0; sq < 64; ++sq) pieces[c][p][sq] = splitmix64(state);
-
+  for (size_t i = 0; i < pieces.size(); ++i) pieces[i] = splitmix64(state);
   return pieces;
+}
+
+constexpr size_t piece_to_idx(size_t c, size_t p, size_t sq) {
+  return c * 384 + p * 64 + sq; 
 }
 
 constexpr auto init_en_passant() {
@@ -63,7 +63,7 @@ constexpr void init_zobrist_keys() {
   init_side_to_move();
 }
 
-constexpr std::array<std::array<std::array<uint64_t, 64>, 6>, 2> pieces_keys = init_pieces();
+constexpr std::array<uint64_t, 64 * 6 * 2> pieces_keys = init_pieces();
 constexpr std::array<Bitboard, 64> enPassant_keys = init_en_passant();
 constexpr std::array<Bitboard, 16> castling_keys = init_castling();
 constexpr Bitboard sideToMove_key = init_side_to_move();

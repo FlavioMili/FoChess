@@ -39,7 +39,6 @@ void Board::makeMove(const Move& m) {
 
   const Bitboard is_capture = (occupancy[them] & to_bb);
 
-
   // Update half-move clock (reset on pawn move or capture)
   halfMoveClock = (pt == PAWN || is_capture) ? 0 : halfMoveClock + 1;
 
