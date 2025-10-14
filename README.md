@@ -8,8 +8,8 @@ There is no iterative deepening so considering a good computer I would recommend
 I did not yet try to make some tests against other chess engines but I guess I might have the record for lowest ELO engine :D. Ok, not really but you get the point.
 
 At the moment these are the features:
-    - A very bad alpha pruning implementation 
-    - A very bad search heuristic 
-    - A kinda good movegen tested with perft
-    - Transposition Tables
-    - Zobrist hashing
+- A very bad alpha pruning implementation 
+- A very bad search heuristic 
+- A kinda good movegen tested with perft
+- Transposition Tables
+- Zobrist hashing
