@@ -15,9 +15,9 @@
 
 namespace MoveGen {
 
+std::array<Move, MAX_MOVES> candidate_moves;
 size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
   size_t n_candidate_moves = 0;
-  std::array<Move, MAX_MOVES> candidate_moves;
 
   const Color friendly_color = board.sideToMove;
   const Color enemy_color = (friendly_color == WHITE) ? BLACK : WHITE;

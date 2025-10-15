@@ -28,24 +28,26 @@ void Board::makeMove(const Move& m) {
   Color us = sideToMove, them = Color(BLACK - us);
   Piece pt = piece_on(from);
   auto mt = m.type();
-
   const Bitboard from_bb = Bitboards::square_bb(from);
   const Bitboard to_bb = Bitboards::square_bb(to);
   const Bitboard from_to_bb = (from_bb | to_bb);
-
+  
   // Clear en passant (will be set again if this is a double pawn push)
   enPassant = NO_SQUARE;
   captured_piece = NO_PIECE;
-
   const Bitboard is_capture = (occupancy[them] & to_bb);
-
+  
   // Update half-move clock (reset on pawn move or capture)
   halfMoveClock = (pt == PAWN || is_capture) ? 0 : halfMoveClock + 1;
-
+  
   if (is_capture) {
     captured_piece = piece_on(to);
     pieces[them][captured_piece] &= ~to_bb;
-
+    
+    // Update occupancy for capture
+    occupancy[them] ^= to_bb;
+    allPieces ^= to_bb;  // Will be XOR'd back when we place our piece
+    
     // Update castling rights if rook captured
     if (captured_piece == ROOK) [[unlikely]] {
       if (to == Square::A1) castling.whiteQueenside = false;
@@ -54,10 +56,14 @@ void Board::makeMove(const Move& m) {
       else if (to == Square::H8) castling.blackKingside = false;
     }
   }
-
-  // Move the piece **This uses some xor trick**
+  
+  // Move the piece
   pieces[us][pt] ^= from_to_bb;
-
+  
+  // Update occupancy for the moving piece
+  occupancy[us] ^= from_to_bb;
+  allPieces ^= from_to_bb;
+  
   // Handle special moves
   if (mt != MoveType::NORMAL) [[unlikely]] {
     switch (mt) {
@@ -65,15 +71,21 @@ void Board::makeMove(const Move& m) {
         // Remove pawn, add promoted piece
         pieces[us][PAWN] &= ~to_bb;
         pieces[us][m.promotion_type()] |= to_bb;
+        // Occupancy already updated above
         break;
-
+        
       case MoveType::EN_PASSANT: {
         Square capturedSq = (us == WHITE) ? Bitboards::down(to) : Bitboards::up(to);
+        Bitboard capturedSq_bb = Bitboards::square_bb(capturedSq);
         captured_piece = PAWN;
-        pieces[them][PAWN] &= ~Bitboards::square_bb(capturedSq);
+        pieces[them][PAWN] &= ~capturedSq_bb;
+        
+        // Update occupancy for en passant capture
+        occupancy[them] ^= capturedSq_bb;
+        allPieces ^= capturedSq_bb;
         break;
       }
-
+      
       case MoveType::CASTLING: {
         // Move the rook
         Square rookFrom, rookTo;
@@ -84,17 +96,19 @@ void Board::makeMove(const Move& m) {
           rookFrom = (us == WHITE) ? Square::A1 : Square::A8;
           rookTo = (us == WHITE) ? Square::D1 : Square::D8;
         }
-
-        // small xor trick
-        pieces[us][ROOK] ^= (Bitboards::square_bb(rookFrom) | 
-                              Bitboards::square_bb(rookTo));
+        Bitboard rook_from_to = (Bitboards::square_bb(rookFrom) | 
+                                  Bitboards::square_bb(rookTo));
+        pieces[us][ROOK] ^= rook_from_to;
+        
+        // Update occupancy for castling rook
+        occupancy[us] ^= rook_from_to;
+        allPieces ^= rook_from_to;
         break;
       }
-
       default: break;
     }
-  } // end not normal movetype checks
-
+  }
+  
   // Update castling rights based on piece moved
   if (pt == KING) {
     if (us == WHITE) {
@@ -108,7 +122,6 @@ void Board::makeMove(const Move& m) {
     else if (from == Square::H1) castling.whiteKingside = false;
     else if (from == Square::A8) castling.blackQueenside = false;
     else if (from == Square::H8) castling.blackKingside = false;
-
   } 
   else if (pt == PAWN) {  // check for en passant
     if (us == WHITE) {
@@ -123,9 +136,7 @@ void Board::makeMove(const Move& m) {
       }
     }
   }
-
-  updateOccupancy();
-
-  fullMoveNumber += BLACK;
+  
+  fullMoveNumber += us;
   sideToMove = them;
 }
