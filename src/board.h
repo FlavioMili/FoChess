@@ -12,6 +12,7 @@
 #include "bitboard.h"
 #include "move.h"
 #include "types.h"
+#include "magic.h"
 
 // I made some tests with an enum : uint8_t 
 // but this implementation was much faster 
@@ -42,6 +43,8 @@ inline bool is_in_check(Color c) const noexcept __attribute__((always_inline));
   Piece piece_on(Square sq) const;
 
   void makeMove(const Move& m);
+  // TODO implement
+  // bool isLegalMove(const Move& m) const;
 
   std::array<std::array<Bitboard, 6>, 2> pieces;  // [color][pieceType]
   std::array<Bitboard, 2> occupancy;              // white/black
@@ -82,7 +85,6 @@ inline Bitboard Board::attacks_to(Square sq, Color attacker_color) const {
 
 inline bool Board::is_in_check(Color c) const noexcept {
   Bitboard king_bb = pieces[c][KING];
-  if (!king_bb) return false;
 
   Square kingSquare = static_cast<Square>(__builtin_ctzll(king_bb));
   Color enemy = Color(BLACK - c);

@@ -45,6 +45,10 @@ constexpr Bitboard square_bb(Square sq) noexcept {
   return Bitboard(1) << static_cast<uint8_t>(sq);
 }
 
+constexpr int popcount(Bitboard bb) noexcept {
+  return __builtin_popcountll(bb);
+}
+
 constexpr uint8_t file_of(Square sq) noexcept {
   return static_cast<uint8_t>(sq % 8);
 }
@@ -224,7 +228,7 @@ inline Bitboard knight_moves(Square sq, Bitboard friendly) {
   return knight_attacks_mask[sq] & ~friendly;
 }
 
-/* *******************************************************************
+/*********************************************************************
                                KING MOVES
 **********************************************************************/
 
@@ -251,72 +255,8 @@ inline Bitboard king_moves(Square sq, Bitboard friendly) {
   return king_attacks_mask[sq] & ~friendly;
 }
 
-/* *******************************************************************
-                               ROOK MOVES
+/*********************************************************************
+                       MAGIC MOVES ARE IN magic.h
 **********************************************************************/
-
-inline Bitboard rook_attacks(Square sq, Bitboard occ) {
-  Bitboard attacks = 0;
-  Bitboard bb = square_bb(sq);
-
-  for (Bitboard t = bb_up(bb); t; t = bb_up(t)) {
-    attacks |= t;
-    if (t & occ) break;
-  }
-  for (Bitboard t = bb_down(bb); t; t = bb_down(t)) {
-    attacks |= t;
-    if (t & occ) break;
-  }
-  for (Bitboard t = bb_left(bb); t; t = bb_left(t)) {
-    attacks |= t;
-    if (t & occ) break;
-  }
-  for (Bitboard t = bb_right(bb); t; t = bb_right(t)) {
-    attacks |= t;
-    if (t & occ) break;
-  }
-
-  return attacks;
-}
-
-inline Bitboard bishop_attacks(Square sq, Bitboard occ) {
-  Bitboard attacks = 0;
-  Bitboard bb = square_bb(sq);
-
-  for (Bitboard t = bb_up_left(bb); t; t = bb_up_left(t)) {
-    attacks |= t;
-    if (t & occ) break;
-  }
-  for (Bitboard t = bb_up_right(bb); t; t = bb_up_right(t)) {
-    attacks |= t;
-    if (t & occ) break;
-  }
-  for (Bitboard t = bb_down_left(bb); t; t = bb_down_left(t)) {
-    attacks |= t;
-    if (t & occ) break;
-  }
-  for (Bitboard t = bb_down_right(bb); t; t = bb_down_right(t)) {
-    attacks |= t;
-    if (t & occ) break;
-  }
-
-  return attacks;
-}
-
-inline Bitboard queen_attacks(Square sq, Bitboard occ) {
-  return rook_attacks(sq, occ) | bishop_attacks(sq, occ);
-}
-
-inline Bitboard rook_moves(Square sq, Bitboard occ, Bitboard friendly) {
-  return rook_attacks(sq, occ) & ~friendly;
-}
-
-inline Bitboard bishop_moves(Square sq, Bitboard occ, Bitboard friendly) {
-  return bishop_attacks(sq, occ) & ~friendly;
-}
-
-inline Bitboard queen_moves(Square sq, Bitboard occ, Bitboard friendly) {
-  return queen_attacks(sq, occ) & ~friendly;
-}
 
 }  // namespace Bitboards
