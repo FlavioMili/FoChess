@@ -4,4 +4,3 @@ add_copyright_header.sh
 .cache
 perf.data*
 
-*.txt 
