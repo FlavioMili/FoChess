@@ -21,6 +21,8 @@ struct SearchResult {
 
 namespace FoChess {
 
+int bland_evaluate(const Board& board);
+
 SearchResult negamax(uint8_t depth, Board& board);
 SearchResult negamax(uint8_t depth, Board& board, TranspositionTable& tt);
 

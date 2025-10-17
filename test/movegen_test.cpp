@@ -14,7 +14,6 @@
 #include <string>
 
 #include "board.h"
-#include "evaluate.h"
 #include "fen.h"
 #include "helpers.h"
 
@@ -30,7 +29,6 @@ void TestBoardGeneration(std::string fen, size_t expected_moves) {
 
   std::cout << "\nGenerated " << n_moves << " moves:\n";
   assert(n_moves == expected_moves);
-  FoChess::order_moves(moves, n_moves, board, Move());
   for (size_t i = 0; i < n_moves; ++i) {
     // std::cout << PrintingHelpers::move_to_str(moves[i]) << "\n";  //      THIS IS UCI STYLING
     std::cout << PrintingHelpers::nice_move_to_str(moves[i], board) << "\n";

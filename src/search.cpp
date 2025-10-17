@@ -106,15 +106,15 @@ SearchResult alpha_beta_pruning(uint8_t depth, Board& board, int alpha, int beta
   return best;
 }
 
-SearchResult alpha_beta_pruning(uint8_t depth, Board& board, TranspositionTable& tt, int alpha,
-                                int beta) {
+SearchResult alpha_beta_pruning(uint8_t depth, Board& board, 
+                                TranspositionTable& tt, int alpha, int beta) {
   nodes++;
   
   // Probe transposition table
   Bitboard key = Zobrist::generate_hash(board);
   TTEntry* tte = tt.probe(key);
   
-  if (tte && tte->depth >= depth) {
+  if ((tte && tte->depth >= depth)) {
     if (tte->flag == TT_EXACT) {
       return {tte->score, tte->best_move};
     }
@@ -143,8 +143,8 @@ SearchResult alpha_beta_pruning(uint8_t depth, Board& board, TranspositionTable&
     return {score, Move()};
   }
   
-  Move tt_move = (tte && tte->best_move.raw() != 0) ? tte->best_move : Move();
-  order_moves(moves, n, board, tt_move);
+  // Move tt_move = (tte && tte->best_move.raw() != 0) ? tte->best_move : Move();
+  // order_moves(moves, n, board, tt_move);
   
   SearchResult best = {alpha, moves[0]};
   TTFlag flag = TT_ALPHA;
