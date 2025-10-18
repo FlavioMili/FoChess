@@ -7,7 +7,6 @@
 
 #include "board.h"
 
-
 #include "bitboard.h"
 #include "move.h"
 #include "types.h"
@@ -19,6 +18,7 @@ Board::Board()
   allPieces(0),
   castling(),
   fullMoveNumber(0),
+  kingSq({ NO_SQUARE, NO_SQUARE }),
   halfMoveClock(0),
   enPassant(Square::NO_SQUARE),
   sideToMove(Color::WHITE) {}
@@ -28,6 +28,7 @@ void Board::makeMove(const Move& m) {
   Color us = sideToMove, them = Color(BLACK - us);
   Piece pt = piece_on(from);
   auto mt = m.type();
+      
   const Bitboard from_bb = Bitboards::square_bb(from);
   const Bitboard to_bb = Bitboards::square_bb(to);
   const Bitboard from_to_bb = (from_bb | to_bb);
@@ -75,7 +76,9 @@ void Board::makeMove(const Move& m) {
         break;
         
       case MoveType::EN_PASSANT: {
-        Square capturedSq = (us == WHITE) ? Bitboards::down(to) : Bitboards::up(to);
+        Square capturedSq = (us == WHITE) 
+                              ? Bitboards::down(to)
+                              : Bitboards::up(to);
         Bitboard capturedSq_bb = Bitboards::square_bb(capturedSq);
         captured_piece = PAWN;
         pieces[them][PAWN] &= ~capturedSq_bb;
@@ -113,8 +116,10 @@ void Board::makeMove(const Move& m) {
   if (pt == KING) {
     if (us == WHITE) {
       castling.whiteKingside = castling.whiteQueenside = false;
+      kingSq[WHITE] = to;
     } else {
       castling.blackKingside = castling.blackQueenside = false;
+      kingSq[BLACK] = to;
     }
   } 
   else if (pt == ROOK) {
