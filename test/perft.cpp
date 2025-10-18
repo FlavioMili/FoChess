@@ -16,48 +16,43 @@
 #include "helpers.h"
 #include "magic.h"
 #include "movegen.h"
-#include "types.h"
 
-struct MagicInitializer {
-  MagicInitializer() { Bitboards::init_magic_tables(); }
-};
-static MagicInitializer magic_initializer;
+int captures = 0;
+int checks = 0;
 
-struct PerftResult {
-  uint64_t nodes = 0;
-  int captures = 0;
-  int checks = 0;
-};
-
-PerftResult perft(Board& board, int depth) {
-  if (depth == 0) {
-    return {1, 0, 0};
-  }
+size_t perft(Board& board, int depth) {
+  // non-bulk calculating
+  if (depth == 0) return 1;
 
   std::array<Move, MAX_MOVES> moves;
   size_t n = MoveGen::generate_all(board, moves);
 
-  PerftResult result;
+  // bulk calculating
+  // if (depth == 1) return n;
+
+  uint64_t nodes = 0;
+
   for (size_t i = 0; i < n; ++i) {
     Move move = moves[i];
     Board copy = board;
     copy.makeMove(move);
 
-    PerftResult branch_result = perft(copy, depth - 1);
-    result.nodes += branch_result.nodes;
-    result.captures += branch_result.captures;
-    result.checks += branch_result.checks;
-
+    // If I comment this out I reach 46M nodes/sec
+#ifdef DEBUG
     if (depth == 1) {
-      if (copy.captured_piece != NO_PIECE) result.captures++;
-      if (copy.is_in_check(copy.sideToMove)) result.checks++;
+      captures += (copy.captured_piece != NO_PIECE);
+      checks += (copy.is_in_check(copy.sideToMove));
     }
+#endif
+
+    nodes += perft(copy, depth - 1);
   }
 
-  return result;
+  return nodes;
 }
 
 int main(int argc, char** argv) {
+  Bitboards::init_magic_tables();
   int depth = argc > 1 ? std::stoi(argv[1]) : 3;
   std::string startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
   std::string secondFEN = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - ";
@@ -68,27 +63,40 @@ int main(int argc, char** argv) {
   std::array<Move, MAX_MOVES> rootMoves;
   size_t nRootMoves = MoveGen::generate_all(board, rootMoves);
 
-  PerftResult total_result;
+  uint64_t totalNodes = 0;
 
   for (size_t i = 0; i < nRootMoves; ++i) {
     Move move = rootMoves[i];
     Board copy = board;
     copy.makeMove(move);
 
-    PerftResult branch_result = perft(copy, depth - 1);
-    total_result.nodes += branch_result.nodes;
-    total_result.captures += branch_result.captures;
-    total_result.checks += branch_result.checks;
+
+#ifdef DEBUG
+    int capturesBefore = captures;
+    int checksBefore = checks;
+#endif
+
+    // Count nodes under this move
+    uint64_t nodes = perft(copy, depth - 1);
+    totalNodes += nodes;
 
     // Print per-root-move count
-    std::cout << std::left << std::setw(6) << PrintingHelpers::move_to_str(move) << ": " << branch_result.nodes;
-    std::cout << " (captures: " << branch_result.captures << ", checks: " << branch_result.checks << ")";
+    std::cout << std::left << std::setw(6) << PrintingHelpers::move_to_str(move) << ": " << nodes;
+
+#ifdef DEBUG
+    std::cout << " (captures: " << captures - capturesBefore <<
+      ", checks: " << checks - checksBefore << ")";
+#endif
+
     std::cout << '\n';
   }
 
-  std::cout << "\nTotal nodes: " << total_result.nodes << "\n";
-  std::cout << "Total captures: " << total_result.captures << "\n";
-  std::cout << "Total checks: " << total_result.checks << "\n";
+  std::cout << "\nTotal nodes: " << totalNodes << "\n";
+
+#ifdef DEBUG
+  std::cout << "Total captures: " << captures << "\n";
+  std::cout << "Total checks: " << checks << "\n";
+#endif
 
   return 0;
 }

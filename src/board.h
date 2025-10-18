@@ -84,7 +84,7 @@ inline Bitboard Board::attacks_to(Square sq, Color attacker_color) const {
   return attackers;
 }
 
-inline bool Board::is_in_check(Color c) const noexcept {
+inline __attribute__((always_inline)) bool Board::is_in_check(Color c) const noexcept {
   // Bitboard king_bb = pieces[c][KING];
   //
   // Square kingSquare = static_cast<Square>(__builtin_ctzll(king_bb));

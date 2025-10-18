@@ -25,7 +25,7 @@ DEBUG_BIN := $(patsubst $(TEST_DIR)/%.cpp,$(DEBUG_DIR)/%,$(TEST_SRC))
 # ---------------- Release build ----------------
 RELEASE_DIR := $(BUILD_DIR)/release
 RELEASE_FLAGS := $(CXX_BASE_FLAGS)
-RELEASE_FLAGS += -O3 -march=native -DNDEBUG
+RELEASE_FLAGS += -O3 -march=native -DNDEBUG -flto
 
 RELEASE_OBJ := $(patsubst $(SRC_DIR)/%.cpp,$(RELEASE_DIR)/%.o,$(SRC))
 RELEASE_BIN := $(patsubst $(TEST_DIR)/%.cpp,$(RELEASE_DIR)/%,$(TEST_SRC))
@@ -60,7 +60,7 @@ $(RELEASE_DIR):
 # ---------------- Performance build ----------------
 PERF_DIR := $(BUILD_DIR)/perf
 PERF_FLAGS := $(CXX_BASE_FLAGS)
-PERF_FLAGS += -O3 -march=native -pg -DNDEBUG -flto -fno-rtti
+PERF_FLAGS += -O3 -march=native -g -DNDEBUG -flto
 
 PERF_OBJ := $(patsubst $(SRC_DIR)/%.cpp,$(PERF_DIR)/%.o,$(SRC))
 PERF_BIN := $(patsubst $(TEST_DIR)/%.cpp,$(PERF_DIR)/%,$(TEST_SRC))

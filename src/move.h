@@ -70,7 +70,7 @@ class Move {
   constexpr MoveType type() const { return MoveType((move >> 14) & 3); }
   constexpr Piece promotion_type() const { return Piece(((move >> 12) & 3) + KNIGHT); }
 
- protected:
+ private:
   constexpr explicit Move(std::uint16_t m) : move(m) {}
   std::uint16_t move = 0;
 };
