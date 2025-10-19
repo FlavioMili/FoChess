@@ -178,14 +178,6 @@ inline bool Board::isLegalMove(const Move& m) const {
   Square king_sq = kingSq[us];
   if (pt == KING) king_sq = to; 
 
-  // Pawn attackers
-  if (Bitboards::pawn_attacks_mask(king_sq, us) & pcs[them][PAWN])
-    return false;
-
-  // Knight attackers
-  if (Bitboards::knight_attacks(king_sq) & pcs[them][KNIGHT])
-    return false;
-
   // Bishop/Queen diagonal
   if (Bitboards::bishop_attacks(king_sq, occ_all) & 
     (pcs[them][BISHOP] | pcs[them][QUEEN]))
@@ -194,6 +186,14 @@ inline bool Board::isLegalMove(const Move& m) const {
   // Rook/Queen straight
   if (Bitboards::rook_attacks(king_sq, occ_all) & 
     (pcs[them][ROOK] | pcs[them][QUEEN]))
+    return false;
+
+  // Knight attackers
+  if (Bitboards::knight_attacks(king_sq) & pcs[them][KNIGHT])
+    return false;
+
+  // Pawn attackers
+  if (Bitboards::pawn_attacks_mask(king_sq, us) & pcs[them][PAWN])
     return false;
 
   return true;

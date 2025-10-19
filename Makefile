@@ -17,7 +17,7 @@ CXX_BASE_FLAGS := -std=c++20 -I./src
 DEBUG_DIR := $(BUILD_DIR)/debug
 DEBUG_FLAGS := $(CXX_BASE_FLAGS)
 DEBUG_FLAGS += -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion -Wcast-align -Wformat=2 \
-               -Wuninitialized -Wdouble-promotion -Wnull-dereference -Wold-style-cast -g -O0 -DDEBUG
+               -Wuninitialized -Wdouble-promotion -Wnull-dereference -Wold-style-cast -g -Og -DDEBUG
 
 DEBUG_OBJ := $(patsubst $(SRC_DIR)/%.cpp,$(DEBUG_DIR)/%.o,$(SRC))
 DEBUG_BIN := $(patsubst $(TEST_DIR)/%.cpp,$(DEBUG_DIR)/%,$(TEST_SRC))

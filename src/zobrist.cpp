@@ -30,6 +30,7 @@ Bitboard generate_hash(const Board& board) {
     }
   }
 
+  // TODO move this to the make move 
   if (board.enPassant != NO_SQUARE) hash ^= enPassant_keys[board.enPassant];
 
   hash ^= castling_keys[PrintingHelpers::encode_castling(board.castling)];

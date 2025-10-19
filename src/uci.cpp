@@ -98,6 +98,7 @@ void UCIengine::info(int depth, int score) {
             << " curr_eval " << eval
             << " nodes " << FoChess::nodes
             << std::endl;
+  FoChess::nodes = 0;
 }
 
 void UCIengine::stop() {
