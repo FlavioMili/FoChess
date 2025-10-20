@@ -74,7 +74,7 @@ void UCIengine::go(std::string& line) {
   std::string token;
   ss >> token;  // Skip "go"
 
-  uint8_t depth = 6;
+  uint8_t depth = 5;
 
   while (ss >> token) {
     if (token == "depth") {

@@ -17,8 +17,10 @@
 #include "magic.h"
 #include "movegen.h"
 
-int captures = 0;
-int checks = 0;
+#ifdef DEBUG
+  int captures = 0;
+  int checks = 0;
+#endif
 
 size_t perft(Board& board, int depth) {
   // non-bulk calculating

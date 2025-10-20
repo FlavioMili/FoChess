@@ -26,7 +26,7 @@ struct TTEntry {
   uint8_t depth;
   TTFlag flag;
 
-  TTEntry() : hash_key(0), score(0), best_move(), depth(0), flag(TT_NONE) {}
+  TTEntry() : hash_key(0), score(0), best_move(Move()), depth(0), flag(TT_NONE) {}
 };
 
 class TranspositionTable {

@@ -16,9 +16,8 @@
 #include "evaluate.h"
 #include "movegen.h"
 #include "tt.h"
+#include "types.h"
 #include "zobrist.h"
-
-constexpr int MATE_SCORE = 1000000;
 
 namespace FoChess {
 
@@ -84,7 +83,7 @@ SearchResult alpha_beta_pruning(uint8_t depth, Board& board, int alpha, int beta
   std::array<Move, MAX_MOVES> moves;
   size_t n = MoveGen::generate_all(board, moves);
 
-  if (n == 0) {
+  if (n == 0) [[unlikely]] {
     if (board.is_in_check(board.sideToMove)) return {-MATE_SCORE, Move()};
     return {0, Move()};
   }
@@ -94,87 +93,73 @@ SearchResult alpha_beta_pruning(uint8_t depth, Board& board, int alpha, int beta
   for (size_t i = 0; i < n; ++i) {
     Board tmp = board;
     tmp.makeMove(moves[i]);
-    SearchResult result = alpha_beta_pruning(depth - 1, tmp, -beta, -alpha);
-    int score = -result.score;
+    uint8_t raiseDepth = depth + (tmp.captured_piece != NO_PIECE);
+    int score = -alpha_beta_pruning(raiseDepth - 1, tmp, -beta, -alpha).score;
 
     if (score > best.score) best = {score, moves[i]};
     alpha = std::max(alpha, score);
 
-    if (score >= beta) break;
+    if (alpha >= beta) break;
   }
 
   return best;
 }
 
-SearchResult alpha_beta_pruning(uint8_t depth, Board& board, 
+SearchResult alpha_beta_pruning(uint8_t depth, Board& board,
                                 TranspositionTable& tt, int alpha, int beta) {
   nodes++;
-  
-  // Probe transposition table
+
   Bitboard key = Zobrist::generate_hash(board);
   TTEntry* tte = tt.probe(key);
-  
-  if ((tte && tte->depth >= depth)) {
-    if (tte->flag == TT_EXACT) {
-      return {tte->score, tte->best_move};
-    }
-    if (tte->flag == TT_ALPHA && tte->score <= alpha) {
-      return {alpha, tte->best_move};
-    }
-    if (tte->flag == TT_BETA && tte->score >= beta) {
-      return {beta, tte->best_move};
-    }
+
+  if (tte && tte->depth >= depth) {
+    if (tte->flag == TT_EXACT) return {tte->score, tte->best_move};
+    if (tte->flag == TT_ALPHA && tte->score <= alpha) return {alpha, tte->best_move};
+    if (tte->flag == TT_BETA && tte->score >= beta) return {beta, tte->best_move};
   }
-  
-  // Leaf node - return evaluation
+
   if (depth == 0) {
     int score = bland_evaluate(board);
     tt.store(key, score, Move(), 0, TT_EXACT);
     return {score, Move()};
   }
-  
+
   std::array<Move, MAX_MOVES> moves;
   size_t n = MoveGen::generate_all(board, moves);
-  
-  // Terminal node (checkmate or stalemate)
   if (n == 0) {
     int score = board.is_in_check(board.sideToMove) ? -MATE_SCORE : 0;
     tt.store(key, score, Move(), depth, TT_EXACT);
     return {score, Move()};
   }
-  
-  // Move tt_move = (tte && tte->best_move.raw() != 0) ? tte->best_move : Move();
-  // order_moves(moves, n, board, tt_move);
-  
-  SearchResult best = {alpha, moves[0]};
+
+  SearchResult best = {alpha, Move()};
   TTFlag flag = TT_ALPHA;
-  
+
   for (size_t i = 0; i < n; ++i) {
-    auto tmp = board;
+    Board tmp = board;
     tmp.makeMove(moves[i]);
-    
-    SearchResult result = alpha_beta_pruning(depth - 1, tmp, tt, -beta, -alpha);
-    int score = -result.score;
-    
+
+    int score = -alpha_beta_pruning(depth - 1, tmp, tt, -beta, -alpha).score;
+
     if (score > best.score) {
       best.score = score;
       best.move = moves[i];
-      
+
       if (score > alpha) {
         alpha = score;
         flag = TT_EXACT;
-        
         if (score >= beta) {
           flag = TT_BETA;
-          break;  // Beta cutoff
+          break;  // beta cutoff
         }
       }
     }
   }
-  
-  tt.store(key, best.score, best.move, depth, flag);
-  
+
+  int storeScore = (flag == TT_BETA) ? beta : alpha;
+  tt.store(key, storeScore, best.move, depth, flag);
+
   return best;
 }
 
-}  // namespace FoChess
+}

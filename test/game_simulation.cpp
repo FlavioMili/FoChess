@@ -27,7 +27,7 @@ int main() {
 
   while (true) {
     std::array<Move, MAX_MOVES> moves;
-    size_t n = MoveGen::generate_all(board, moves);
+    MoveGen::generate_all(board, moves);
     // if (n == 0 || __builtin_popcountl(board.allPieces) < 3) break;
 
     FoChess::nodes = 0;

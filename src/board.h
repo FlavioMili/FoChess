@@ -113,10 +113,10 @@ inline Piece Board::piece_on(Square sq) const {
 }
 
 inline bool Board::isLegalMove(const Move& m) const {
-  Square from = m.from_sq(), to = m.to_sq();
-  Color us = sideToMove, them = Color(BLACK - us);
-  Piece pt = piece_on(from);
-  auto mt = m.type();
+  const Square from = m.from_sq(), to = m.to_sq();
+  const Color us = sideToMove, them = Color(BLACK - us);
+  const Piece pt = piece_on(from);
+  const auto mt = m.type();
 
   const Bitboard from_bb = Bitboards::square_bb(from);
   const Bitboard to_bb = Bitboards::square_bb(to);

@@ -28,13 +28,14 @@ SearchResult negamax(uint8_t depth, Board& board, TranspositionTable& tt);
 
 // Version without TT
 SearchResult alpha_beta_pruning(uint8_t depth, Board& board, int alpha = INT_MIN + 1,
-                                int beta = INT_MAX);
+                                int beta = INT_MAX - 1);
 
 // Version with TT
 SearchResult alpha_beta_pruning(uint8_t depth, Board& board, TranspositionTable& tt,
-                                int alpha = INT_MIN + 1, int beta = INT_MAX);
+                                int alpha = INT_MIN + 1, int beta = INT_MAX - 1);
 
 
 inline int nodes = 0;
+constexpr int MATE_SCORE = 1000000000;
 
 }  // namespace FoChess

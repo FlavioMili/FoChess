@@ -25,7 +25,7 @@ DEBUG_BIN := $(patsubst $(TEST_DIR)/%.cpp,$(DEBUG_DIR)/%,$(TEST_SRC))
 # ---------------- Release build ----------------
 RELEASE_DIR := $(BUILD_DIR)/release
 RELEASE_FLAGS := $(CXX_BASE_FLAGS)
-RELEASE_FLAGS += -O3 -march=native -DNDEBUG -flto
+RELEASE_FLAGS += -O3 -march=native -DNDEBUG -flto -fno-exceptions -fno-rtti
 
 RELEASE_OBJ := $(patsubst $(SRC_DIR)/%.cpp,$(RELEASE_DIR)/%.o,$(SRC))
 RELEASE_BIN := $(patsubst $(TEST_DIR)/%.cpp,$(RELEASE_DIR)/%,$(TEST_SRC))

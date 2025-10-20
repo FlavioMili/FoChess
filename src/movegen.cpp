@@ -16,13 +16,14 @@
 
 namespace MoveGen {
 
-alignas(64) std::array<Move, MAX_MOVES> candidate_moves;
+std::array<Move, MAX_MOVES> candidate_moves;
 size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
   auto n_candidate_moves = generate_pseudolegal(board, candidate_moves);
   size_t idx = 0;
   for (size_t i = 0; i < n_candidate_moves; ++i) {
     Move m = candidate_moves[i];
-    if (board.isLegalMove(m)) moves[idx++] = m;
+    if (board.isLegalMove(m)) [[likely]]
+      moves[idx++] = m;
   }
   return idx;
 }
@@ -133,29 +134,31 @@ size_t generate_pseudolegal(const Board& board, std::array<Move, MAX_MOVES>& mov
           }
 
           // Castling
-          CastlingRights cr = board.castling;
+          const CastlingRights cr = board.castling;
+
+          const bool not_in_check_friendly = !board.is_in_check(friendly_color);
           if (friendly_color == WHITE) {
             if (cr.whiteKingside && (board.allPieces & Bitboards::WK_EMPTY) == 0 &&
-                !board.is_in_check(WHITE)) {
+                not_in_check_friendly) {
               if (!board.attacks_to(F1, enemy_color) && !board.attacks_to(G1, enemy_color)) {
                 moves[n_candidate_moves++] = Move(E1, G1, CASTLING);
               }
             }
             if (cr.whiteQueenside && (board.allPieces & Bitboards::WQ_EMPTY) == 0 &&
-                !board.is_in_check(WHITE)) {
+                not_in_check_friendly) {
               if (!board.attacks_to(D1, enemy_color) && !board.attacks_to(C1, enemy_color)) {
                 moves[n_candidate_moves++] = Move(E1, C1, CASTLING);
               }
             }
           } else {  // BLACK
             if (cr.blackKingside && (board.allPieces & Bitboards::BK_EMPTY) == 0 &&
-                !board.is_in_check(BLACK)) {
+                not_in_check_friendly) {
               if (!board.attacks_to(F8, enemy_color) && !board.attacks_to(G8, enemy_color)) {
                 moves[n_candidate_moves++] = Move(E8, G8, CASTLING);
               }
             }
             if (cr.blackQueenside && (board.allPieces & Bitboards::BQ_EMPTY) == 0 &&
-                !board.is_in_check(BLACK)) {
+                not_in_check_friendly) {
               if (!board.attacks_to(D8, enemy_color) && !board.attacks_to(C8, enemy_color)) {
                 moves[n_candidate_moves++] = Move(E8, C8, CASTLING);
               }
