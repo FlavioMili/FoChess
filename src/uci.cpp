@@ -85,7 +85,7 @@ void UCIengine::go(std::string& line) {
     // TODO: Add other UCI parameters like movetime, wtime, btime, etc.
   }
 
-  auto result = FoChess::alpha_beta_pruning(depth, board, tt);
+  auto result = FoChess::iterative_deepening(depth, board, tt);
   info(depth, result.score);
   std::string move_str = PrintingHelpers::move_to_str(result.move);
   std::cout << "bestmove " << move_str << std::endl;

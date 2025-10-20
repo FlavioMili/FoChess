@@ -16,7 +16,6 @@
 #include "evaluate.h"
 #include "movegen.h"
 #include "tt.h"
-#include "types.h"
 #include "zobrist.h"
 
 namespace FoChess {
@@ -76,7 +75,8 @@ SearchResult negamax(uint8_t depth, Board& board, TranspositionTable& tt) {
   return best;
 }
 
-SearchResult alpha_beta_pruning(uint8_t depth, Board& board, int alpha, int beta) {
+SearchResult alpha_beta_pruning(uint8_t depth, Board& board, int alpha,
+                                int beta) {
   nodes++;
   if (depth == 0) return {bland_evaluate(board), Move()};
 
@@ -93,8 +93,7 @@ SearchResult alpha_beta_pruning(uint8_t depth, Board& board, int alpha, int beta
   for (size_t i = 0; i < n; ++i) {
     Board tmp = board;
     tmp.makeMove(moves[i]);
-    uint8_t raiseDepth = depth + (tmp.captured_piece != NO_PIECE);
-    int score = -alpha_beta_pruning(raiseDepth - 1, tmp, -beta, -alpha).score;
+    int score = -alpha_beta_pruning(depth - 1, tmp, -beta, -alpha).score;
 
     if (score > best.score) best = {score, moves[i]};
     alpha = std::max(alpha, score);
@@ -103,6 +102,34 @@ SearchResult alpha_beta_pruning(uint8_t depth, Board& board, int alpha, int beta
   }
 
   return best;
+}
+
+SearchResult quiescence_search(Board& board, TranspositionTable& tt, int alpha,
+                               int beta) {
+  nodes++;
+
+  // Stand pat
+  int stand_pat = bland_evaluate(board);
+  if (stand_pat >= beta) return {stand_pat, Move()};
+  if (stand_pat > alpha) alpha = stand_pat;
+
+  std::array<Move, MAX_MOVES> moves;
+  size_t n = MoveGen::generate_captures(board, moves);
+
+  SearchResult best = {alpha, Move()};
+
+  for (size_t i = 0; i < n; ++i) {
+    Board tmp = board;
+    tmp.makeMove(moves[i]);
+
+    int score = -quiescence_search(tmp, tt, -beta, -alpha).score;
+
+    if (score >= beta) return {score, moves[i]};
+    if (score > best.score) best.score = score;
+    if (score > alpha) alpha = score;
+  }
+
+return best;
 }
 
 SearchResult alpha_beta_pruning(uint8_t depth, Board& board,
@@ -114,18 +141,22 @@ SearchResult alpha_beta_pruning(uint8_t depth, Board& board,
 
   if (tte && tte->depth >= depth) {
     if (tte->flag == TT_EXACT) return {tte->score, tte->best_move};
-    if (tte->flag == TT_ALPHA && tte->score <= alpha) return {alpha, tte->best_move};
-    if (tte->flag == TT_BETA && tte->score >= beta) return {beta, tte->best_move};
+    if (tte->flag == TT_ALPHA && tte->score <= alpha)
+      return {tte->score, tte->best_move};
+    if (tte->flag == TT_BETA && tte->score >= beta)
+      return {tte->score, tte->best_move};
   }
 
   if (depth == 0) {
-    int score = bland_evaluate(board);
-    tt.store(key, score, Move(), 0, TT_EXACT);
-    return {score, Move()};
+    // int score = bland_evaluate(board);
+    // tt.store(key, score, Move(), 0, TT_EXACT);
+    // return {score, Move()};
+    return quiescence_search(board, tt, alpha, beta);
   }
 
   std::array<Move, MAX_MOVES> moves;
   size_t n = MoveGen::generate_all(board, moves);
+
   if (n == 0) {
     int score = board.is_in_check(board.sideToMove) ? -MATE_SCORE : 0;
     tt.store(key, score, Move(), depth, TT_EXACT);
@@ -150,16 +181,15 @@ SearchResult alpha_beta_pruning(uint8_t depth, Board& board,
         flag = TT_EXACT;
         if (score >= beta) {
           flag = TT_BETA;
-          break;  // beta cutoff
+          break;
         }
       }
     }
   }
 
-  int storeScore = (flag == TT_BETA) ? beta : alpha;
-  tt.store(key, storeScore, best.move, depth, flag);
+  tt.store(key, best.score, best.move, depth, flag);
 
   return best;
 }
 
-}
+}  // namespace FoChess

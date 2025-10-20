@@ -22,5 +22,5 @@ namespace MoveGen {
 // Generate all pseudo-legal moves for the side to move
 size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves);
 size_t generate_pseudolegal(const Board& board, std::array<Move, MAX_MOVES>& candidate_moves);
-
+size_t generate_captures(const Board& board, std::array<Move, MAX_MOVES>& moves);
 }  // namespace MoveGen
