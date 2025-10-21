@@ -37,13 +37,15 @@ struct Board {
 
   Bitboard attacks_to(Square sq, Color attacker_color) const;
 
-  inline bool is_in_check(Color c) const noexcept __attribute__((always_inline));
+  inline bool is_in_check(Color c) const noexcept
+      __attribute__((always_inline));
 
   Color color_on(Square sq) const;
   Piece piece_on(Square sq) const;
 
   void makeMove(const Move& m);
   inline bool isLegalMove(const Move& m) const;
+  inline bool moveExists(const Move& m) const;
 
   std::array<std::array<Bitboard, 6>, 2> pieces;  // [color][pieceType]
   std::array<Bitboard, 2> occupancy;              // white/black
@@ -58,11 +60,13 @@ struct Board {
 };
 
 inline void Board::updateOccupancy() {
-  occupancy[WHITE] = pieces[WHITE][PAWN] | pieces[WHITE][KNIGHT] | pieces[WHITE][BISHOP] |
-                     pieces[WHITE][ROOK] | pieces[WHITE][QUEEN] | pieces[WHITE][KING];
+  occupancy[WHITE] = pieces[WHITE][PAWN] | pieces[WHITE][KNIGHT] |
+                     pieces[WHITE][BISHOP] | pieces[WHITE][ROOK] |
+                     pieces[WHITE][QUEEN] | pieces[WHITE][KING];
 
-  occupancy[BLACK] = pieces[BLACK][PAWN] | pieces[BLACK][KNIGHT] | pieces[BLACK][BISHOP] |
-                     pieces[BLACK][ROOK] | pieces[BLACK][QUEEN] | pieces[BLACK][KING];
+  occupancy[BLACK] = pieces[BLACK][PAWN] | pieces[BLACK][KNIGHT] |
+                     pieces[BLACK][BISHOP] | pieces[BLACK][ROOK] |
+                     pieces[BLACK][QUEEN] | pieces[BLACK][KING];
 
   allPieces = occupancy[WHITE] | occupancy[BLACK];
   kingSq = {static_cast<Square>(std::countr_zero(pieces[WHITE][KING])),
@@ -72,7 +76,8 @@ inline void Board::updateOccupancy() {
 inline Bitboard Board::attacks_to(Square sq, Color attacker_color) const {
   Bitboard attackers = 0;
 
-  attackers |= Bitboards::pawn_attacks_mask(sq, static_cast<Color>(BLACK - attacker_color)) &
+  attackers |= Bitboards::pawn_attacks_mask(
+                   sq, static_cast<Color>(BLACK - attacker_color)) &
                pieces[attacker_color][PAWN];
   attackers |= Bitboards::knight_attacks(sq) & pieces[attacker_color][KNIGHT];
   attackers |= Bitboards::king_attacks(sq) & pieces[attacker_color][KING];
@@ -84,7 +89,8 @@ inline Bitboard Board::attacks_to(Square sq, Color attacker_color) const {
   return attackers;
 }
 
-inline __attribute__((always_inline)) bool Board::is_in_check(Color c) const noexcept {
+inline __attribute__((always_inline)) bool Board::is_in_check(
+    Color c) const noexcept {
   // Bitboard king_bb = pieces[c][KING];
   //
   // Square kingSquare = static_cast<Square>(__builtin_ctzll(king_bb));
@@ -110,6 +116,12 @@ inline Piece Board::piece_on(Square sq) const {
     }
   }
   return NO_PIECE;
+}
+
+inline bool Board::moveExists(const Move& m) const {
+  auto to = m.to_sq();
+  return ((m.from_sq() & occupancy[sideToMove]) &&
+          ((to & ~allPieces) || (to & occupancy[BLACK - sideToMove])));
 }
 
 inline bool Board::isLegalMove(const Move& m) const {
@@ -145,9 +157,8 @@ inline bool Board::isLegalMove(const Move& m) const {
   if (mt != MoveType::NORMAL) [[unlikely]] {
     switch (mt) {
       case MoveType::EN_PASSANT: {
-        Square capturedSq = (us == WHITE) 
-                              ? Bitboards::down(to)
-                              : Bitboards::up(to);
+        Square capturedSq =
+            (us == WHITE) ? Bitboards::down(to) : Bitboards::up(to);
         Bitboard capturedSq_bb = Bitboards::square_bb(capturedSq);
         pcs[them][PAWN] &= ~capturedSq_bb;
         occ[them] ^= capturedSq_bb;
@@ -163,8 +174,8 @@ inline bool Board::isLegalMove(const Move& m) const {
           rookFrom = (us == WHITE) ? Square::A1 : Square::A8;
           rookTo = (us == WHITE) ? Square::D1 : Square::D8;
         }
-        Bitboard r_bb = (Bitboards::square_bb(rookFrom) | 
-                                  Bitboards::square_bb(rookTo));
+        Bitboard r_bb =
+            (Bitboards::square_bb(rookFrom) | Bitboards::square_bb(rookTo));
         pcs[us][ROOK] ^= r_bb;
         occ[us] ^= r_bb;
         occ_all ^= r_bb;
@@ -176,25 +187,25 @@ inline bool Board::isLegalMove(const Move& m) const {
   }
 
   Square king_sq = kingSq[us];
-  if (pt == KING) king_sq = to; 
+  if (pt == KING) king_sq = to;
 
   // Bishop/Queen diagonal
-  if (Bitboards::bishop_attacks(king_sq, occ_all) & 
-    (pcs[them][BISHOP] | pcs[them][QUEEN]))
+  if (Bitboards::bishop_attacks(king_sq, occ_all) &
+      (pcs[them][BISHOP] | pcs[them][QUEEN]))
     return false;
 
   // Rook/Queen straight
-  if (Bitboards::rook_attacks(king_sq, occ_all) & 
-    (pcs[them][ROOK] | pcs[them][QUEEN]))
+  if (Bitboards::rook_attacks(king_sq, occ_all) &
+      (pcs[them][ROOK] | pcs[them][QUEEN]))
     return false;
 
   // Knight attackers
-  if (Bitboards::knight_attacks(king_sq) & pcs[them][KNIGHT])
-    return false;
+  if (Bitboards::knight_attacks(king_sq) & pcs[them][KNIGHT]) return false;
 
   // Pawn attackers
-  if (Bitboards::pawn_attacks_mask(king_sq, us) & pcs[them][PAWN])
-    return false;
+  if (Bitboards::pawn_attacks_mask(king_sq, us) & pcs[them][PAWN]) return false;
+
+  if (Bitboards::king_attacks(king_sq) & pcs[them][KING]) return false;
 
   return true;
 }

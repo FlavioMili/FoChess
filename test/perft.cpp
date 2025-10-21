@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
     totalNodes += nodes;
 
     // Print per-root-move count
-    std::cout << std::left << std::setw(6) << PrintingHelpers::move_to_str(move) << ": " << nodes;
+    std::cout << std::left << std::setw(4) << PrintingHelpers::move_to_str(move) << ": " << nodes;
 
 #ifdef DEBUG
     std::cout << " (captures: " << captures - capturesBefore <<

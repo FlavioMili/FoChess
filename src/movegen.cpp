@@ -295,8 +295,7 @@ size_t generate_captures(const Board& board,
           // No castling in captures
           break;
         }
-        default:
-          break;
+        default: break;
       }
       bb &= bb - 1;
     }

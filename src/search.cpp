@@ -104,9 +104,27 @@ SearchResult alpha_beta_pruning(uint8_t depth, Board& board, int alpha,
   return best;
 }
 
+const bool should_stop_search() {
+  if (g_should_stop.load()) return true;
+
+  // Check time limit if set
+  if (g_time_limit.load() > 0) {
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                       std::chrono::steady_clock::now() - g_search_start)
+                       .count();
+
+    if (elapsed >= g_time_limit.load()) return true;
+  }
+
+  return false;
+}
+
 SearchResult quiescence_search(Board& board, TranspositionTable& tt, int alpha,
                                int beta) {
   nodes++;
+  if (nodes % 2048 == 0 && should_stop_search()) {
+    return {bland_evaluate(board), Move()};
+  }
 
   // Stand pat
   int stand_pat = bland_evaluate(board);
@@ -125,26 +143,36 @@ SearchResult quiescence_search(Board& board, TranspositionTable& tt, int alpha,
     int score = -quiescence_search(tmp, tt, -beta, -alpha).score;
 
     if (score >= beta) return {score, moves[i]};
-    if (score > best.score) best.score = score;
+    if (score > best.score) {
+      best.score = score;
+      best.move = moves[i];
+    }
     if (score > alpha) alpha = score;
   }
 
-return best;
+  return best;
 }
 
 SearchResult alpha_beta_pruning(uint8_t depth, Board& board,
                                 TranspositionTable& tt, int alpha, int beta) {
   nodes++;
+  if (nodes % 4096 == 0 && should_stop_search()) {
+    return {alpha, Move()};
+  }
 
   Bitboard key = Zobrist::generate_hash(board);
   TTEntry* tte = tt.probe(key);
 
-  if (tte && tte->depth >= depth) {
-    if (tte->flag == TT_EXACT) return {tte->score, tte->best_move};
-    if (tte->flag == TT_ALPHA && tte->score <= alpha)
-      return {tte->score, tte->best_move};
-    if (tte->flag == TT_BETA && tte->score >= beta)
-      return {tte->score, tte->best_move};
+  Move tt_move = Move();
+  if (tte) {
+    tt_move = tte->best_move;
+    if (tte->depth >= depth && board.moveExists(tt_move) && board.isLegalMove(tt_move)) {
+      if (tte->flag == TT_EXACT) return {tte->score, tte->best_move};
+      if (tte->flag == TT_ALPHA && tte->score <= alpha)
+        return {tte->score, tte->best_move};
+      if (tte->flag == TT_BETA && tte->score >= beta)
+        return {tte->score, tte->best_move};
+    }
   }
 
   if (depth == 0) {
@@ -163,13 +191,14 @@ SearchResult alpha_beta_pruning(uint8_t depth, Board& board,
     return {score, Move()};
   }
 
-  SearchResult best = {alpha, Move()};
+  SearchResult best = {INT_MIN+1, Move()};
   TTFlag flag = TT_ALPHA;
 
   for (size_t i = 0; i < n; ++i) {
     Board tmp = board;
     tmp.makeMove(moves[i]);
 
+    if (should_stop_search()) return best.move != Move() ? best : SearchResult{alpha, tt_move};
     int score = -alpha_beta_pruning(depth - 1, tmp, tt, -beta, -alpha).score;
 
     if (score > best.score) {
@@ -181,6 +210,7 @@ SearchResult alpha_beta_pruning(uint8_t depth, Board& board,
         flag = TT_EXACT;
         if (score >= beta) {
           flag = TT_BETA;
+          tt.store(key, best.score, best.move, depth, flag);
           break;
         }
       }
