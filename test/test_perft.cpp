@@ -49,7 +49,7 @@ int main() {
   }
   file.close();
 
-  int total_lines = lines.size();
+  size_t total_lines = lines.size();
   int lines_processed = 0;
 
   auto total_start_time = std::chrono::high_resolution_clock::now();
@@ -85,15 +85,18 @@ int main() {
       if (result != expected_nodes) {
         std::cerr << "\n--- TEST FAILED ---\n";
         std::cerr << "FEN: " << fen << "\n";
-        std::cerr << "Depth: " << depth << "\n"; 
-        std::cerr << "given: " << result << ", expected: " << expected_nodes << "\n";
+        std::cerr << "Depth: " << depth << "\n";
+        std::cerr << "given: " << result << ", expected: " << expected_nodes
+                  << "\n";
         std::cerr << "-------------------\n";
         return 1;
       }
     }
 
     lines_processed++;
-    int percentage = (int)(((double)lines_processed / total_lines) * 100.0);
+    int percentage = static_cast<int>((static_cast<double>(lines_processed) /
+                                       static_cast<double>(total_lines)) *
+                                      100.0);
     std::cout << "[" << percentage << "% processed]\n";
   }
 
