@@ -189,6 +189,7 @@ size_t generate_pseudolegal(const Board& board,
 
 size_t generate_captures(const Board& board,
                          std::array<Move, MAX_MOVES>& moves) {
+  std::array<Move, MAX_MOVES> candidate_captures;
   size_t n_candidate_moves = 0;
 
   const Color friendly_color = board.sideToMove;
@@ -197,10 +198,10 @@ size_t generate_captures(const Board& board,
   const Bitboard enemy = board.occupancy[enemy_color];
 
   auto add_promotions = [&](Square from, Square to) {
-    moves[n_candidate_moves++] = Move(from, to, QUEEN);
-    moves[n_candidate_moves++] = Move(from, to, ROOK);
-    moves[n_candidate_moves++] = Move(from, to, BISHOP);
-    moves[n_candidate_moves++] = Move(from, to, KNIGHT);
+    candidate_captures[n_candidate_moves++] = Move(from, to, QUEEN);
+    candidate_captures[n_candidate_moves++] = Move(from, to, ROOK);
+    candidate_captures[n_candidate_moves++] = Move(from, to, BISHOP);
+    candidate_captures[n_candidate_moves++] = Move(from, to, KNIGHT);
   };
 
   // Generate captures for each piece type
@@ -222,7 +223,7 @@ size_t generate_captures(const Board& board,
             if (Bitboards::rank_of(to) == promotion_rank) [[unlikely]] {
               add_promotions(from, to);
             } else {
-              moves[n_candidate_moves++] = Move(from, to);
+              candidate_captures[n_candidate_moves++] = Move(from, to);
             }
             attacks &= attacks - 1;
           }
@@ -232,7 +233,7 @@ size_t generate_captures(const Board& board,
           if (enp != NO_SQUARE &&
               Bitboards::pawn_attacks_mask(from, friendly_color) &
                   Bitboards::square_bb(enp)) {
-            moves[n_candidate_moves++] = Move(from, enp, EN_PASSANT);
+            candidate_captures[n_candidate_moves++] = Move(from, enp, EN_PASSANT);
           }
           break;
         }
@@ -242,7 +243,7 @@ size_t generate_captures(const Board& board,
               enemy;
           while (targets) {
             Square to = static_cast<Square>(__builtin_ctzll(targets));
-            moves[n_candidate_moves++] = Move(from, to);
+            candidate_captures[n_candidate_moves++] = Move(from, to);
             targets &= targets - 1;
           }
           break;
@@ -254,7 +255,7 @@ size_t generate_captures(const Board& board,
               enemy;
           while (targets) {
             Square to = static_cast<Square>(__builtin_ctzll(targets));
-            moves[n_candidate_moves++] = Move(from, to);
+            candidate_captures[n_candidate_moves++] = Move(from, to);
             targets &= targets - 1;
           }
           break;
@@ -266,7 +267,7 @@ size_t generate_captures(const Board& board,
               enemy;
           while (targets) {
             Square to = static_cast<Square>(__builtin_ctzll(targets));
-            moves[n_candidate_moves++] = Move(from, to);
+            candidate_captures[n_candidate_moves++] = Move(from, to);
             targets &= targets - 1;
           }
           break;
@@ -278,7 +279,7 @@ size_t generate_captures(const Board& board,
               enemy;
           while (targets) {
             Square to = static_cast<Square>(__builtin_ctzll(targets));
-            moves[n_candidate_moves++] = Move(from, to);
+            candidate_captures[n_candidate_moves++] = Move(from, to);
             targets &= targets - 1;
           }
           break;
@@ -289,7 +290,7 @@ size_t generate_captures(const Board& board,
               enemy;
           while (targets) {
             Square to = static_cast<Square>(__builtin_ctzll(targets));
-            moves[n_candidate_moves++] = Move(from, to);
+            candidate_captures[n_candidate_moves++] = Move(from, to);
             targets &= targets - 1;
           }
           // No castling in captures
@@ -301,18 +302,12 @@ size_t generate_captures(const Board& board,
     }
   }
 
-  // Filter for legal moves (same as generate_all)
-  std::array<Move, MAX_MOVES> legal_moves;
+  // Filter for legal moves (same pattern as generate_all)
   size_t idx = 0;
   for (size_t i = 0; i < n_candidate_moves; ++i) {
-    Move m = moves[i];
+    Move m = candidate_captures[i];
     if (board.isLegalMove(m)) [[likely]]
-      legal_moves[idx++] = m;
-  }
-
-  // Copy legal moves back
-  for (size_t i = 0; i < idx; ++i) {
-    moves[i] = legal_moves[i];
+      moves[idx++] = m;
   }
 
   return idx;

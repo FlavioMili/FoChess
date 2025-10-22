@@ -38,7 +38,7 @@ int main() {
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    auto res = FoChess::alpha_beta_pruning(5, board, tt);
+    auto res = FoChess::iterative_deepening(5, board, tt);
 
     // Find best move (assuming you have this function)
     Move best = res.move;

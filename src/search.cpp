@@ -20,61 +20,10 @@
 
 namespace FoChess {
 
-SearchResult negamax(uint8_t depth, Board& board) {
-  FoChess::nodes++;
-  if (depth == 0) {
-    return {bland_evaluate(board), Move()};
-  }
-  std::array<Move, MAX_MOVES> moves;
-  size_t n = MoveGen::generate_all(board, moves);
-  if (n == 0) {
-    if (board.is_in_check(board.sideToMove)) return {INT_MIN, Move()};
-    return {0, Move()};
-  }
-  SearchResult best = {INT_MIN, moves[0]};
-  for (size_t i = 0; i < n; ++i) {
-    Board tmp = board;
-    tmp.makeMove(moves[i]);
-    SearchResult result = negamax(depth - 1, tmp);
-    int score = -result.score;
-    if (score > best.score) {
-      best.score = score;
-      best.move = moves[i];
-    }
-  }
-  return best;
-}
-
-SearchResult negamax(uint8_t depth, Board& board, TranspositionTable& tt) {
-  nodes++;
-  Bitboard key = Zobrist::generate_hash(board);
-
-  if (TTEntry* entry = tt.probe(key)) {
-    if (entry->depth >= depth) return {entry->score, entry->best_move};
-  }
-
-  if (depth == 0) return {bland_evaluate(board), Move()};
-
-  std::array<Move, MAX_MOVES> moves;
-  size_t n = MoveGen::generate_all(board, moves);
-  if (n == 0)
-    return board.is_in_check(board.sideToMove) ? SearchResult{INT_MIN, Move()}
-                                               : SearchResult{0, Move()};
-
-  SearchResult best = {INT_MIN, moves[0]};
-
-  for (size_t i = 0; i < n; ++i) {
-    Board tmp = board;
-    tmp.makeMove(moves[i]);
-    SearchResult result = negamax(depth - 1, tmp, tt);
-    int score = -result.score;
-    if (score > best.score) best = {score, moves[i]};
-  }
-
-  tt.store(key, best.score, best.move, depth, TT_EXACT);
-  return best;
-}
-
+////////////////////////////////////////////////////////////////
+// this is not the function to be used in search,
+// it is kept here just for testing
+///////////////////////////////////////////////////////////////
 SearchResult alpha_beta_pruning(uint8_t depth, Board& board, int alpha,
                                 int beta) {
   nodes++;
@@ -102,21 +51,6 @@ SearchResult alpha_beta_pruning(uint8_t depth, Board& board, int alpha,
   }
 
   return best;
-}
-
-const bool should_stop_search() {
-  if (g_should_stop.load()) return true;
-
-  // Check time limit if set
-  if (g_time_limit.load() > 0) {
-    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                       std::chrono::steady_clock::now() - g_search_start)
-                       .count();
-
-    if (elapsed >= g_time_limit.load()) return true;
-  }
-
-  return false;
 }
 
 SearchResult quiescence_search(Board& board, TranspositionTable& tt, int alpha,

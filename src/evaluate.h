@@ -8,6 +8,7 @@
 #pragma once
 
 #include "board.h"
+
 namespace FoChess {
 
 int bland_evaluate(const Board& board);

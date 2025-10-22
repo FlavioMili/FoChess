@@ -38,8 +38,8 @@ int main() {
 
   TranspositionTable tt;
 
-  SearchResult result1 = FoChess::negamax(5, board1, tt);
-  SearchResult result2 = FoChess::negamax(5, board2, tt);
+  SearchResult result1 = FoChess::iterative_deepening(5, board1, tt);
+  SearchResult result2 = FoChess::iterative_deepening(5, board2, tt);
 
   assert(result1.score == result2.score);
   assert(result1.move == result2.move);
