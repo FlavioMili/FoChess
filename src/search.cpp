@@ -14,7 +14,6 @@
 #include "board.h"
 #include "evaluate.h"
 #include "movegen.h"
-#include "tt.h"
 
 namespace FoChess {
 
@@ -28,7 +27,7 @@ int alpha_beta_pruning(int depth, Board& board, int alpha, int beta, int ply) {
     return alpha;
   }
 
-  if (depth == 0) return bland_evaluate(board);
+  if (depth == 0) return quiescence_search(board, alpha, beta);
 
   FoChess::g_search_stats.node_count.fetch_add(1, std::memory_order_relaxed);
 
@@ -69,7 +68,7 @@ int alpha_beta_pruning(int depth, Board& board, int alpha, int beta, int ply) {
   return best;
 }
 
-int quiescence_search(Board& board, TranspositionTable& tt, int alpha,
+int quiescence_search(Board& board, int alpha,
                       int beta) {
   if (should_stop_search()) {
     return bland_evaluate(board);
@@ -87,7 +86,7 @@ int quiescence_search(Board& board, TranspositionTable& tt, int alpha,
     Board tmp = board;
     tmp.makeMove(moves[i]);
 
-    int score = -quiescence_search(tmp, tt, -beta, -alpha);
+    int score = -quiescence_search(tmp, -beta, -alpha);
 
     if (score >= beta) return score;
     if (score > alpha) {
