@@ -38,17 +38,17 @@ int main() {
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    auto res = FoChess::iterative_deepening(5, board, tt);
+    FoChess::iterative_deepening(5, board, tt);
 
     // Find best move (assuming you have this function)
-    Move best = res.move;
+    Move best = FoChess::g_search_stats.best_move.load();
 
     auto end = std::chrono::high_resolution_clock::now();
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
     std::cout << "Position " << posCount << ":\n";
     std::cout << "FEN: " << line << "\n";
-    std::cout << "Seen nodes: " << FoChess::nodes << "\n";
+    std::cout << "Seen nodes: " << FoChess::g_search_stats.node_count << "\n";
     std::cout << "Best move: " << PrintingHelpers::move_to_str(best) << "\n";
     std::cout << "Time: " << ms << " ms\n\n";
   }

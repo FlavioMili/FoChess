@@ -30,23 +30,23 @@ int main() {
     size_t n = MoveGen::generate_all(board, moves);
     if (n == 0 || __builtin_popcountl(board.allPieces) < 3) break;
 
-    FoChess::nodes = 0;
+    FoChess::g_search_stats.node_count = 0;
 #ifdef DEBUG
     tt.hits = 0;
 #endif
     auto start = std::chrono::high_resolution_clock::now();
-    SearchResult result = FoChess::iterative_deepening(6, board, tt);
+    FoChess::iterative_deepening(6, board, tt);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
 
-    board.makeMove(result.move);
+    board.makeMove(FoChess::g_search_stats.best_move.load());
 
 #ifdef DEBUG
     std::cout << "tt hits: " << tt.hits << "\n";
     tt.hits = 0;
 #endif
-    std::cout << "best move score: " << result.score
-              << " nodes/sec: " << static_cast<double>(FoChess::nodes) / elapsed.count() << "\n";
+    std::cout << "best move score: " << FoChess::g_search_stats.best_root_score.load()
+              << " nodes/sec: " << FoChess::g_search_stats.nps(FoChess::g_search_state) << "\n";
 
     PrintingHelpers::printBoard(board);
   }

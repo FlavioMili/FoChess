@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <iostream>
+#include <ostream>
 #include <sstream>
 #include <string>
 
@@ -137,8 +138,9 @@ void UCIengine::go(std::string& line) {
   }
 
   // Reset stop flag and start search thread
-  FoChess::g_should_stop = false;
-  FoChess::g_time_limit = time_for_move;
+  FoChess::g_search_state.should_stop.store(false, std::memory_order_relaxed);
+  FoChess::g_search_state.time_limit.store(time_for_move,
+                                           std::memory_order_relaxed);
   is_searching = true;
 
   search_thread =
@@ -147,34 +149,42 @@ void UCIengine::go(std::string& line) {
 }
 
 void UCIengine::search_thread_func(uint8_t depth, int64_t time_ms) {
-  FoChess::g_search_start = std::chrono::steady_clock::now();
+  FoChess::iterative_deepening(depth, board, tt);
 
-  auto result = FoChess::iterative_deepening(depth, board, tt);
+  Move best = FoChess::g_search_stats.best_move.load(std::memory_order_relaxed);
 
-  // Only output if search completed normally (not stopped)
-  if (!FoChess::g_should_stop) {
-    info(depth, result.score);
-    std::string move_str = PrintingHelpers::move_to_str(result.move);
-    std::cout << "bestmove " << move_str << std::endl;
-  } else if (result.move.raw() != EMPTY_MOVE) {
-    // Stopped but have a move
-    std::string move_str = PrintingHelpers::move_to_str(result.move);
+  if (best.raw() != EMPTY_MOVE) {
+    if (!FoChess::g_search_state.should_stop.load(std::memory_order_relaxed)) {
+      info();
+    }
+    std::string move_str = PrintingHelpers::move_to_str(best);
     std::cout << "bestmove " << move_str << std::endl;
   }
-
   is_searching = false;
 }
 
-void UCIengine::info(int depth, int score) {
-  double eval = score / 100.0;
-  std::cout << "info depth " << static_cast<int>(depth) << " score cp " << score
-            << " nodes " << FoChess::nodes << std::endl;
-  FoChess::nodes = 0;
+void UCIengine::info() {
+  int depth =
+      FoChess::g_search_stats.highest_depth.load(std::memory_order_relaxed);
+
+  int score =
+      FoChess::g_search_stats.best_root_score.load(std::memory_order_relaxed);
+
+  uint64_t nodes =
+      FoChess::g_search_stats.node_count.load(std::memory_order_relaxed);
+
+  int64_t time_ms = FoChess::g_search_stats.elapsed_ms(FoChess::g_search_state);
+
+  std::cout << "info depth " << depth << " score cp " << score << " nodes "
+            << nodes << " time " << time_ms << " nps "
+            << static_cast<uint64_t>(
+                   FoChess::g_search_stats.nps(FoChess::g_search_state))
+            << std::endl;
 }
 
 void UCIengine::stop() {
   if (is_searching) {
-    FoChess::g_should_stop = true;
+    FoChess::g_search_state.should_stop.store(true, std::memory_order_relaxed);
 
     // Wait for search to finish (with timeout)
     auto wait_start = std::chrono::steady_clock::now();
@@ -192,8 +202,7 @@ void UCIengine::stop() {
 }
 
 void UCIengine::ucinewgame() {
-  stop();  // Stop any ongoing search
+  stop();  // Justin Case
   board = FEN::parse();
   tt.clear();
-  FoChess::nodes = 0;
 }

@@ -20,14 +20,13 @@ int main() {
   Zobrist::init_zobrist_keys();
   TranspositionTable tt;
   Board board = FEN::parse(
-      "5k1r/1pR1Q1pp/5p2/1p1Rp3/1P1pP2P/r2P1N2/3B1PP1/6K1 b - - 0 31"
-  );
+      "5k1r/1pR1Q1pp/5p2/1p1Rp3/1P1pP2P/r2P1N2/3B1PP1/6K1 b - - 0 31");
 
   auto start = std::chrono::high_resolution_clock::now();
-  auto result = FoChess::iterative_deepening(8, board, tt);
+  FoChess::iterative_deepening(8, board, tt);
   auto end = std::chrono::high_resolution_clock::now();
 
-  board.makeMove(result.move);
+  board.makeMove(FoChess::g_search_stats.best_move.load());
 
   std::chrono::duration<double> elapsed = end - start;
 #ifdef DEBUG
@@ -35,7 +34,9 @@ int main() {
   tt.hits = 0;
 #endif
   std::cout << "best move and score: "
-            << PrintingHelpers::move_to_str(result.move) << ", " << result.score
+            << PrintingHelpers::move_to_str(
+                   FoChess::g_search_stats.best_move.load())
+            << ", " << FoChess::g_search_stats.best_root_score.load()
             << "\nnodes/sec: "
-            << static_cast<double>(FoChess::nodes) / elapsed.count() << "\n";
+            << FoChess::g_search_stats.nps(FoChess::g_search_state) << "\n";
 }

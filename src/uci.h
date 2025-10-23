@@ -25,7 +25,7 @@ class UCIengine {
   void go(std::string& line);
   void stop();
   void ucinewgame();
-  void info(int depth, int score);
+  void info();
 
   void search_thread_func(uint8_t depth, int64_t time_ms);
 

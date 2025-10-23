@@ -38,11 +38,16 @@ int main() {
 
   TranspositionTable tt;
 
-  SearchResult result1 = FoChess::iterative_deepening(5, board1, tt);
-  SearchResult result2 = FoChess::iterative_deepening(5, board2, tt);
+  FoChess::iterative_deepening(5, board1, tt);
+  int score1 = FoChess::g_search_stats.best_root_score.load();
+  Move move1 = FoChess::g_search_stats.best_move.load();
 
-  assert(result1.score == result2.score);
-  assert(result1.move == result2.move);
+  FoChess::iterative_deepening(5, board2, tt);
+  int score2 = FoChess::g_search_stats.best_root_score.load();
+  Move move2 = FoChess::g_search_stats.best_move.load();
+
+  assert(score1 == score2);
+  assert(move1 == move2);
 
   std::cout << "Transposition table test passed!\n";
 
