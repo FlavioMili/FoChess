@@ -59,13 +59,13 @@ int alpha_beta_pruning(int depth, Board& board, int alpha = INT_MIN + 1,
                        int beta = INT_MAX - 1, int ply = 0);
 
 // Version with TT
-// int alpha_beta_pruning(int depth, Board& board, TranspositionTable& tt,
-//                        int alpha = INT_MIN + 1, int beta = INT_MAX - 1);
+int alpha_beta_pruning(int depth, Board& board, TranspositionTable& tt,
+                       int alpha = INT_MIN + 1, int beta = INT_MAX - 1, int ply = 0);
 
 void iterative_deepening(int max_depth, Board& board, TranspositionTable& tt);
 
-int quiescence_search(Board& board, int alpha,
-                      int beta);
+int quiescence_search(Board& board, int alpha, int beta);
+int quiescence_search(Board& board, TranspositionTable& tt, int alpha, int beta);
 
 }  // namespace FoChess
 
@@ -111,7 +111,7 @@ inline void FoChess::iterative_deepening(int max_depth, Board& board,
   for (int depth = 1; depth <= max_depth; ++depth) {
     if (should_stop_search()) break;
     
-    int score = alpha_beta_pruning(depth, board, INT_MIN + 1, INT_MAX - 1, 0);
+    int score = alpha_beta_pruning(depth, board, tt, INT_MIN + 1, INT_MAX - 1);
     
     if (should_stop_search()) break;
     

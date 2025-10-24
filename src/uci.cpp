@@ -154,9 +154,7 @@ void UCIengine::search_thread_func(uint8_t depth, int64_t time_ms) {
   Move best = FoChess::g_search_stats.best_move.load(std::memory_order_relaxed);
 
   if (best.raw() != EMPTY_MOVE) {
-    if (!FoChess::g_search_state.should_stop.load(std::memory_order_relaxed)) {
-      info();
-    }
+    info();
     std::string move_str = PrintingHelpers::move_to_str(best);
     std::cout << "bestmove " << move_str << std::endl;
   }
