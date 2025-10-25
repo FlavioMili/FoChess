@@ -49,6 +49,12 @@ constexpr int popcount(Bitboard bb) noexcept {
   return __builtin_popcountll(bb);
 }
 
+inline Square pop_lsb(Bitboard& bb) noexcept {
+    const Square s = static_cast<Square>(__builtin_ctzll(bb));
+    bb &= bb - 1;
+    return s;
+}
+
 constexpr uint8_t file_of(Square sq) noexcept {
   return static_cast<uint8_t>(sq % 8);
 }

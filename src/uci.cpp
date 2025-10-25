@@ -137,7 +137,7 @@ void UCIengine::go(std::string& line) {
   search_thread.detach();
 }
 
-void UCIengine::search_thread_func(uint8_t depth, int64_t time_ms) {
+void UCIengine::search_thread_func(uint8_t depth, [[maybe_unused]] int64_t time_ms) {
   FoChess::iterative_deepening(depth, board, tt);
 
   Move best = FoChess::g_search_stats.best_move.load(std::memory_order_relaxed);

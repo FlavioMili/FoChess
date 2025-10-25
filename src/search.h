@@ -17,7 +17,7 @@
 namespace FoChess {
 
 constexpr int MATE_SCORE = 10000000;
-constexpr int INF_SCORE = 2*MATE_SCORE;
+constexpr int INF_SCORE = 2 * MATE_SCORE;
 
 struct SearchState {
   std::atomic<bool> searching{false};
@@ -41,7 +41,9 @@ struct SearchStatistics {
   double nps(const SearchState& state) const {
     int64_t time_ms = elapsed_ms(state);
     uint64_t nodes = node_count.load(std::memory_order_relaxed);
-    return time_ms > 0 ? (nodes * 1000.0) / time_ms : 0.0;
+    return time_ms > 0 ? (static_cast<double>(nodes) * 1000.0) /
+                             static_cast<double>(time_ms)
+                       : 0.0;
   }
 };
 
@@ -55,17 +57,19 @@ bool should_stop_search();
 int bland_evaluate(const Board& board);
 
 // Version without TT
-int alpha_beta_pruning(int depth, Board& board,
-                       int alpha = -INF_SCORE, int beta = INF_SCORE, int ply = 0);
+int alpha_beta_pruning(int depth, Board& board, int alpha = -INF_SCORE,
+                       int beta = INF_SCORE, int ply = 0);
 
 // Version with TT
 int alpha_beta_pruning(int depth, Board& board, TranspositionTable& tt,
-                       int alpha = -INF_SCORE, int beta = INF_SCORE, int ply = 0);
+                       int alpha = -INF_SCORE, int beta = INF_SCORE,
+                       int ply = 0);
 
 void iterative_deepening(int max_depth, Board& board, TranspositionTable& tt);
 
 int quiescence_search(Board& board, int alpha, int beta);
-int quiescence_search(Board& board, TranspositionTable& tt, int alpha, int beta);
+int quiescence_search(Board& board, TranspositionTable& tt, int alpha,
+                      int beta);
 
 }  // namespace FoChess
 
@@ -105,19 +109,19 @@ inline bool FoChess::should_stop_search() {
 }
 
 inline void FoChess::iterative_deepening(int max_depth, Board& board,
-                                        TranspositionTable& tt) {
+                                         TranspositionTable& tt) {
   reset_search();
-  
+
   for (int depth = 1; depth <= max_depth; ++depth) {
     if (should_stop_search()) break;
-    
+
     int score = alpha_beta_pruning(depth, board, tt, -INF_SCORE, INF_SCORE);
-    
+
     if (should_stop_search()) break;
-    
+
     g_search_stats.highest_depth.store(depth, std::memory_order_relaxed);
     g_search_stats.best_root_score.store(score, std::memory_order_relaxed);
   }
-  
+
   end_search();
 }

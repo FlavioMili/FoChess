@@ -143,14 +143,14 @@ int alpha_beta_pruning(int depth, Board& board, TranspositionTable& tt,
         flag = TT_EXACT;
         if (score >= beta) {
           flag = TT_BETA;
-          tt.store(hash_key, best, best_move, depth, flag);
+          tt.store(hash_key, best, best_move, static_cast<uint8_t>(depth), flag);
           break;
         }
       }
     }
   }
 
-  tt.store(hash_key, best, best_move, depth, flag);
+  tt.store(hash_key, best, best_move, static_cast<uint8_t>(depth), flag);
   return best;
 }
 
