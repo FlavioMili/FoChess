@@ -26,10 +26,10 @@ int main() {
 
   // Position after g1-f3-g1
   Board board2 = board1;
-  board2.makeMove(PrintingHelpers::uci_to_move("g1f3"));
-  board2.makeMove(PrintingHelpers::uci_to_move("a1a2"));  // dummy move
-  board2.makeMove(PrintingHelpers::uci_to_move("f3g1"));
-  board2.makeMove(PrintingHelpers::uci_to_move("a2a1"));  // dummy move
+  board2.makeMove(PrintingHelpers::uci_to_move("g1f3", board1));
+  board2.makeMove(PrintingHelpers::uci_to_move("a1a2", board1));  // dummy move
+  board2.makeMove(PrintingHelpers::uci_to_move("f3g1", board1));
+  board2.makeMove(PrintingHelpers::uci_to_move("a2a1", board1));  // dummy move
 
   std::cout << "Board 1 FEN: " << FEN::to_fen(board1) << std::endl;
   std::cout << "Board 2 FEN: " << FEN::to_fen(board2) << std::endl;

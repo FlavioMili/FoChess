@@ -102,29 +102,39 @@ inline std::string move_to_str(const Move& m) {
   return s;
 }
 
-inline Move uci_to_move(const std::string& s) {
-  if (s.size() < 4) return Move(); // invalid
+inline Move uci_to_move(const std::string& s, const Board& board) {
+  if (s.size() < 4) return Move();
 
-  // Convert file+rank to Square
   int from_file = s[0] - 'a';
-  int from_rank = '8' - s[1]; // rank 8 -> 0
-  int to_file   = s[2] - 'a';
-  int to_rank   = '8' - s[3];
+  int from_rank = '8' - s[1];
+  int to_file = s[2] - 'a';
+  int to_rank = '8' - s[3];
 
   Square from_sq = static_cast<Square>(from_rank * 8 + from_file);
-  Square to_sq   = static_cast<Square>(to_rank * 8 + to_file);
+  Square to_sq = static_cast<Square>(to_rank * 8 + to_file);
 
-  // Check for promotion
   if (s.size() == 5) {
     Piece promo = QUEEN;
     switch (s[4]) {
       case 'q': promo = QUEEN; break;
-      case 'r': promo = ROOK;  break;
+      case 'r': promo = ROOK; break;
       case 'b': promo = BISHOP; break;
       case 'n': promo = KNIGHT; break;
     }
     return Move(from_sq, to_sq, promo);
   }
+
+  Piece moving_piece = board.piece_on(from_sq);
+  if (moving_piece == KING && abs(from_file - to_file) == 2)
+      return Move(from_sq, to_sq, CASTLING);
+
+  // Check for en-passant
+  // Note: board.enPassant is the target square for the capture,
+  // not the square of the pawn being captured.
+
+  if (moving_piece == PAWN && to_sq == board.enPassant)
+      return Move(from_sq, to_sq, EN_PASSANT);
+
   return Move(from_sq, to_sq);
 }
 

@@ -72,7 +72,7 @@ void UCIengine::position(std::string& line) {
   // Apply moves if present
   while (ss >> token) {
     if (token == "moves") continue;
-    board.makeMove(PrintingHelpers::uci_to_move(token));
+    board.makeMove(PrintingHelpers::uci_to_move(token, board));
   }
 }
 
@@ -113,31 +113,20 @@ void UCIengine::go(std::string& line) {
     }
   }
 
-  // Calculate time limit
   int64_t time_for_move = 0;
 
   if (movetime > 0) {
-    // Fixed time per move - leave 100ms buffer
-    time_for_move = std::max<int64_t>(10, movetime - 100);
+    time_for_move = std::max<int64_t>(10, movetime - 50);
   } else if (!infinite) {
-    int64_t our_time = board.sideToMove == WHITE ? wtime : btime;
-    int64_t our_inc = board.sideToMove == WHITE ? winc : binc;
+    int64_t our_time = (board.sideToMove == WHITE) ? wtime : btime;
+    int64_t our_inc = (board.sideToMove == WHITE) ? winc : binc;
 
     if (our_time > 0) {
-      // Use floating point for accurate calculation
-      double base_time = static_cast<double>(our_time) / (movestogo + 5.0);
-      double increment_usage = our_inc * 0.8;
-
-      time_for_move = static_cast<int64_t>(base_time + increment_usage);
-
-      // Safety limits
-      time_for_move = std::max<int64_t>(20, time_for_move - 150);
-      time_for_move = std::min<int64_t>(time_for_move, our_time / 5);
-      time_for_move = std::min<int64_t>(time_for_move, our_time - 500);
+      time_for_move = our_time / 20 + our_inc / 2;
+      time_for_move = std::clamp<int64_t>(time_for_move, 20, our_time - 200);
     }
   }
 
-  // Reset stop flag and start search thread
   FoChess::g_search_state.should_stop.store(false, std::memory_order_relaxed);
   FoChess::g_search_state.time_limit.store(time_for_move,
                                            std::memory_order_relaxed);
@@ -145,7 +134,7 @@ void UCIengine::go(std::string& line) {
 
   search_thread =
       std::thread(&UCIengine::search_thread_func, this, depth, time_for_move);
-  search_thread.detach();  // Detach so we can continue receiving commands
+  search_thread.detach();
 }
 
 void UCIengine::search_thread_func(uint8_t depth, int64_t time_ms) {

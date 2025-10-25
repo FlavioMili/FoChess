@@ -8,12 +8,16 @@
 #pragma once
 #include <atomic>
 #include <chrono>
-#include <climits>
 #include <cstdint>
 
 #include "board.h"
 #include "move.h"
 #include "tt.h"
+
+namespace FoChess {
+
+constexpr int MATE_SCORE = 10000000;
+constexpr int INF_SCORE = 2*MATE_SCORE;
 
 struct SearchState {
   std::atomic<bool> searching{false};
@@ -25,7 +29,7 @@ struct SearchState {
 struct SearchStatistics {
   std::atomic<uint64_t> node_count{0};
   std::atomic<int> highest_depth{0};
-  std::atomic<int> best_root_score{INT_MIN + 1};
+  std::atomic<int> best_root_score{-INF_SCORE};
   std::atomic<Move> best_move{Move{}};
 
   int64_t elapsed_ms(const SearchState& state) const {
@@ -41,12 +45,8 @@ struct SearchStatistics {
   }
 };
 
-namespace FoChess {
-
 inline SearchState g_search_state;
 inline SearchStatistics g_search_stats;
-
-constexpr int MATE_SCORE = 10000000;
 
 void reset_search();
 void end_search();
@@ -55,12 +55,12 @@ bool should_stop_search();
 int bland_evaluate(const Board& board);
 
 // Version without TT
-int alpha_beta_pruning(int depth, Board& board, int alpha = INT_MIN + 1,
-                       int beta = INT_MAX - 1, int ply = 0);
+int alpha_beta_pruning(int depth, Board& board,
+                       int alpha = -INF_SCORE, int beta = INF_SCORE, int ply = 0);
 
 // Version with TT
 int alpha_beta_pruning(int depth, Board& board, TranspositionTable& tt,
-                       int alpha = INT_MIN + 1, int beta = INT_MAX - 1, int ply = 0);
+                       int alpha = -INF_SCORE, int beta = INF_SCORE, int ply = 0);
 
 void iterative_deepening(int max_depth, Board& board, TranspositionTable& tt);
 
@@ -111,11 +111,10 @@ inline void FoChess::iterative_deepening(int max_depth, Board& board,
   for (int depth = 1; depth <= max_depth; ++depth) {
     if (should_stop_search()) break;
     
-    int score = alpha_beta_pruning(depth, board, tt, INT_MIN + 1, INT_MAX - 1);
+    int score = alpha_beta_pruning(depth, board, tt, -INF_SCORE, INF_SCORE);
     
     if (should_stop_search()) break;
     
-    // Update statistics - use .store() for atomics!
     g_search_stats.highest_depth.store(depth, std::memory_order_relaxed);
     g_search_stats.best_root_score.store(score, std::memory_order_relaxed);
   }
