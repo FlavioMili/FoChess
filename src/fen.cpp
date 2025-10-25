@@ -12,6 +12,7 @@
 
 #include "board.h"
 #include "types.h"
+#include "zobrist.h"
 
 namespace {
 
@@ -97,6 +98,8 @@ Board parse(const std::string& fen) {
     int r = '8' - rank;
     board.enPassant = static_cast<Square>(r * 8 + f);
   }
+
+  board.hash = Zobrist::generate_hash(board);
 
   return board;
 }

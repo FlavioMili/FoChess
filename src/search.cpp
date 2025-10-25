@@ -14,7 +14,6 @@
 #include "evaluate.h"
 #include "movegen.h"
 #include "tt.h"
-#include "zobrist.h"
 
 namespace FoChess {
 
@@ -93,7 +92,7 @@ int alpha_beta_pruning(int depth, Board& board, TranspositionTable& tt,
       should_stop_search())
     return alpha;
 
-  const uint64_t hash_key = Zobrist::generate_hash(board);
+  const uint64_t hash_key = board.hash;
   TTEntry* tte = tt.probe(hash_key);
 
   Move tt_move = Move();

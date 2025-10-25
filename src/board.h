@@ -49,6 +49,7 @@ struct Board {
 
   std::array<std::array<Bitboard, 6>, 2> pieces;  // [color][pieceType]
   std::array<Bitboard, 2> occupancy;              // white/black
+  uint64_t hash;
   Bitboard allPieces;                             // all occupied squares
   CastlingRights castling;                        // castling rights flags
   uint16_t fullMoveNumber;
