@@ -37,26 +37,26 @@ struct Board {
 
   Bitboard attacks_to(Square sq, Color attacker_color) const;
 
-  inline bool is_in_check(Color c) const noexcept
-      __attribute__((always_inline));
+  bool is_in_check(Color c) const noexcept;
+  
 
   Color color_on(Square sq) const;
   Piece piece_on(Square sq) const;
 
   void makeMove(const Move& m);
-  inline bool isLegalMove(const Move& m) const;
-  inline bool moveExists(const Move& m) const;
+  bool isLegalMove(const Move& m) const;
+  bool moveExists(const Move& m) const;
 
-  std::array<std::array<Bitboard, 6>, 2> pieces;  // [color][pieceType]
-  std::array<Bitboard, 2> occupancy;              // white/black
+  std::array<std::array<Bitboard, 6>, 2> pieces {};  // [color][pieceType]
+  std::array<Bitboard, 2> occupancy {0,0};              // white/black
   uint64_t hash;
-  Bitboard allPieces;       // all occupied squares
-  CastlingRights castling;  // castling rights flags
-  uint16_t fullMoveNumber;
-  std::array<Square, 2> kingSq;
-  uint8_t halfMoveClock;
+  Bitboard allPieces {};       // all occupied squares
+  CastlingRights castling {};  // castling rights flags
+  uint16_t fullMoveNumber {};
+  std::array<Square, 2> kingSq {NO_SQUARE, NO_SQUARE};
+  uint8_t halfMoveClock {};
   Square enPassant = NO_SQUARE;  // en passant target
-  Color sideToMove;
+  Color sideToMove {WHITE};
   Piece captured_piece;
 };
 
@@ -95,7 +95,7 @@ inline __attribute__((always_inline)) bool Board::is_in_check(
   // Bitboard king_bb = pieces[c][KING];
   //
   // Square kingSquare = static_cast<Square>(__builtin_ctzll(king_bb));
-  Color enemy = Color(BLACK - c);
+  auto enemy = static_cast<Color>(BLACK - c);
   return attacks_to(kingSq[c], enemy) != 0;
 }
 
@@ -126,8 +126,10 @@ inline bool Board::moveExists(const Move& m) const {
 }
 
 inline bool Board::isLegalMove(const Move& m) const {
-  const Square from = m.from_sq(), to = m.to_sq();
-  const Color us = sideToMove, them = Color(BLACK - us);
+  const Square from = m.from_sq();
+  const Square to = m.to_sq();
+  const Color us = sideToMove;
+  const Color them = Color(BLACK - us);
   const Piece pt = piece_on(from);
   const auto mt = m.type();
 
@@ -141,8 +143,8 @@ inline bool Board::isLegalMove(const Move& m) const {
   Bitboard occ_all = allPieces;  // union
 
   // handle capture (normal capture)
-  const Bitboard is_capture = (occ[them] & to_bb);
-  if (is_capture) {
+  if (const Bitboard is_capture = (occ[them] & to_bb);
+      is_capture) {
     Piece capturedP = piece_on(to);
     pcs[them][capturedP] &= ~to_bb;
     occ[them] ^= to_bb;
@@ -167,7 +169,8 @@ inline bool Board::isLegalMove(const Move& m) const {
         break;
       }
       case MoveType::CASTLING: {
-        Square rookFrom, rookTo;
+        Square rookFrom;
+        Square rookTo;
         if (to > from) {  // kingside
           rookFrom = (us == WHITE) ? Square::H1 : Square::H8;
           rookTo = (us == WHITE) ? Square::F1 : Square::F8;

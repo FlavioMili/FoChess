@@ -11,9 +11,9 @@
   
 namespace FoChess {
 
-static constexpr int piece_values[5] = {180, 550, 630, 900, 1340};
+static constexpr std::array<int, 5> piece_values = {180, 550, 630, 900, 1340};
 
-static constexpr int pawn_table[64] = {
+static constexpr std::array<int, 64> pawn_table = {
     990,  990,  990,  990,  990,  990,  990,  990,
     5, 10, 10,20,20, 10, 10,  5,
     5, 5,10,  0,  0,10, 5,  5,
@@ -24,7 +24,7 @@ static constexpr int pawn_table[64] = {
     0,  0,  0,  0,  0,  0,  0,  0
 };
 
-static constexpr int knight_table[64] = {
+static constexpr std::array<int, 64> knight_table = {
    -50,-40,-30,-30,-30,-30,-40,-50,
    -40,-20,  0,  0,  0,  0,-20,-40,
    -30,  0, 10,15,15,10,  0,-30,
@@ -35,7 +35,7 @@ static constexpr int knight_table[64] = {
    -50,-40,-30,-30,-30,-30,-40,-50
 };
 
-static constexpr int bishop_table[64] = {
+static constexpr std::array<int, 64> bishop_table = {
    -20,-10,-10,-10,-10,-10,-10,-20,
    -10,  0,  0,  0,  0,  0,  0,-10,
    -10,  0,  5,10,10, 5,  0,-10,
@@ -46,7 +46,7 @@ static constexpr int bishop_table[64] = {
    -20,-10,-10,-10,-10,-10,-10,-20
 };
 
-static constexpr int rook_table[64] = {
+static constexpr std::array<int, 64> rook_table = {
      0,  1,  1,  1,  1,  1,  1,  0,
      5, 10, 10, 10, 10, 10, 10,  5,
     -5,  0,  0,  0,  0,  0,  0, -5,
@@ -57,7 +57,7 @@ static constexpr int rook_table[64] = {
      0,  0,  0,  5,  5,  0,  0,  0
 };
 
-static constexpr int queen_table[64] = {
+static constexpr std::array<int, 64> queen_table = {
    -20,-10,-10, -5, -5,-10,-10,-20,
    -10,  1,  2,  1,  1,  2,  1,-10,
    -10,  0,  2,  2,  2,  2,  1,-10,
@@ -68,9 +68,9 @@ static constexpr int queen_table[64] = {
    -20,-10,-10, -5, -5,-10,-10,-20
 };
 
-constexpr const int* pst_tables[5] = {
-    pawn_table, knight_table, bishop_table, rook_table, queen_table
-};
+constexpr std::array<const int*, 5> pst_tables = {
+    pawn_table.data(), knight_table.data(), bishop_table.data(),
+    rook_table.data(), queen_table.data()};
 
 int bland_evaluate(const Board& board) {
   int score = 0;

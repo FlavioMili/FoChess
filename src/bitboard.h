@@ -9,10 +9,11 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 
 #include "types.h"
 
-typedef uint64_t Bitboard;
+using Bitboard = uint64_t;
 
 namespace Bitboards {
 
@@ -42,7 +43,7 @@ constexpr Bitboard RANK_2 = 0x00FF000000000000ULL;
 constexpr Bitboard RANK_1 = 0xFF00000000000000ULL;
 
 constexpr Bitboard square_bb(Square sq) noexcept {
-  return Bitboard(1) << static_cast<uint8_t>(sq);
+  return Bitboard(1) << std::to_underlying(sq);
 }
 
 constexpr int popcount(Bitboard bb) noexcept {
@@ -50,7 +51,7 @@ constexpr int popcount(Bitboard bb) noexcept {
 }
 
 inline Square pop_lsb(Bitboard& bb) noexcept {
-    const Square s = static_cast<Square>(__builtin_ctzll(bb));
+    const auto s = static_cast<Square>(__builtin_ctzll(bb));
     bb &= bb - 1;
     return s;
 }
@@ -60,7 +61,7 @@ constexpr uint8_t file_of(Square sq) noexcept {
 }
 
 constexpr uint8_t rank_of(Square sq) noexcept {
-  return static_cast<uint8_t>(7 - (static_cast<int>(sq) / 8));
+  return static_cast<uint8_t>(7 - (std::to_underlying(sq) / 8));
 }
 
 // White castling
@@ -175,16 +176,18 @@ inline Bitboard pawn_moves(Square sq, Color c, Bitboard empty) {
   const auto& mask = (c == WHITE) ? white_pawn_moves_mask : black_pawn_moves_mask;
   Bitboard moves = mask[sq];
 
-  // Remove blocked squares
-  Bitboard one_step = (c == WHITE) ? (Bitboards::bb_up(Bitboards::square_bb(sq)) & empty)
-    : (Bitboards::bb_down(Bitboards::square_bb(sq)) & empty);
-
   // If the single-step square is blocked, remove all moves
-  if (!one_step) moves &= ~mask[sq];
+  if (Bitboard one_step =
+          (c == WHITE) ? (Bitboards::bb_up(Bitboards::square_bb(sq)) & empty)
+                       : (Bitboards::bb_down(Bitboards::square_bb(sq)) & empty);
+      !one_step)
+    moves &= ~mask[sq];
   else {
-    // If double push exists in the mask but the intermediate square is blocked, remove it
+    // If double push exists in the mask but the intermediate square is blocked,
+    // remove it
     Bitboard double_push = moves & ~one_step;
-    moves &= ~((double_push) & ~(Bitboards::bb_up(one_step) | Bitboards::bb_down(one_step)));
+    moves &= ~(double_push &
+               ~(Bitboards::bb_up(one_step) | Bitboards::bb_down(one_step)));
   }
 
   return moves & empty;

@@ -167,7 +167,7 @@ namespace MoveGen {
 
 size_t generate_pseudolegal(const Board& board,
                             std::array<Move, MAX_MOVES>& moves) {
-  Move* start = moves.begin();
+  auto start = moves.begin();
   Move* end = start;
 
   // --- Phase 1: Captures & Promotions ---
@@ -204,7 +204,7 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
 size_t generate_captures(const Board& board,
                          std::array<Move, MAX_MOVES>& moves) {
   std::array<Move, MAX_MOVES> candidate_captures;
-  Move* start = candidate_captures.begin();
+  auto start = candidate_captures.begin();
   Move* end = start;
 
   end = generate_pawn_captures(board, end);
@@ -214,7 +214,7 @@ size_t generate_captures(const Board& board,
   end = generate_piece_captures(board, end, QUEEN);
   end = generate_piece_captures(board, end, KING);
 
-  size_t n_candidate_moves = static_cast<size_t>(end - start);
+  auto n_candidate_moves = static_cast<size_t>(end - start);
 
   size_t idx = 0;
   for (size_t i = 0; i < n_candidate_moves; ++i) {

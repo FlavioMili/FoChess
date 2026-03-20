@@ -11,7 +11,7 @@ SRC := $(wildcard $(SRC_DIR)/*.cpp)
 TEST_SRC := $(wildcard $(TEST_DIR)/*.cpp)
 
 # ---------------- Base flags ----------------
-CXX_BASE_FLAGS := -std=c++20 -I./src
+CXX_BASE_FLAGS := -std=c++23 -I./src
 
 # ---------------- Debug build ----------------
 DEBUG_DIR := $(BUILD_DIR)/debug

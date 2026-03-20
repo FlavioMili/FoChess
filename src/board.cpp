@@ -14,20 +14,13 @@
 #include "zobrist.h"
 
 // ---------------- Constructor ----------------
-Board::Board()
-    : pieces({}),
-      occupancy{0, 0},
-      allPieces(0),
-      castling(),
-      fullMoveNumber(0),
-      kingSq({NO_SQUARE, NO_SQUARE}),
-      halfMoveClock(0),
-      enPassant(Square::NO_SQUARE),
-      sideToMove(Color::WHITE) {}
+Board::Board() {}
 
 void Board::makeMove(const Move& m) {
-  const Square from = m.from_sq(), to = m.to_sq();
-  const Color us = sideToMove, them = Color(BLACK - us);
+  const Square from = m.from_sq();
+  const Square to = m.to_sq();
+  const Color us = sideToMove;
+  const Color them = Color(BLACK - us);
   const Piece pt = piece_on(from);
   const auto mt = m.type();
 
@@ -88,7 +81,8 @@ void Board::makeMove(const Move& m) {
       }
 
       case MoveType::CASTLING: {
-        Square rookFrom, rookTo;
+        Square rookFrom;
+        Square rookTo;
         if (to > from) {  // Kingside
           rookFrom = (us == WHITE) ? H1 : H8;
           rookTo = (us == WHITE) ? F1 : F8;

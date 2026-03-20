@@ -110,8 +110,8 @@ inline Move uci_to_move(const std::string& s, const Board& board) {
   int to_file = s[2] - 'a';
   int to_rank = '8' - s[3];
 
-  Square from_sq = static_cast<Square>(from_rank * 8 + from_file);
-  Square to_sq = static_cast<Square>(to_rank * 8 + to_file);
+  auto from_sq = static_cast<Square>(from_rank * 8 + from_file);
+  auto to_sq = static_cast<Square>(to_rank * 8 + to_file);
 
   if (s.size() == 5) {
     Piece promo = QUEEN;
@@ -120,6 +120,7 @@ inline Move uci_to_move(const std::string& s, const Board& board) {
       case 'r': promo = ROOK; break;
       case 'b': promo = BISHOP; break;
       case 'n': promo = KNIGHT; break;
+      default: promo = QUEEN;
     }
     return Move(from_sq, to_sq, promo);
   }
