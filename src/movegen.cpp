@@ -196,8 +196,7 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
   size_t idx = 0;
   for (size_t i = 0; i < n_candidate_moves; ++i) {
     Move m = candidate_moves[i];
-    if (board.isLegalMove(m)) [[likely]]
-      moves[idx++] = m;
+    if (board.isLegalMove(m)) moves[idx++] = m;
   }
   return idx;
 }

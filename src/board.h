@@ -50,8 +50,8 @@ struct Board {
   std::array<std::array<Bitboard, 6>, 2> pieces;  // [color][pieceType]
   std::array<Bitboard, 2> occupancy;              // white/black
   uint64_t hash;
-  Bitboard allPieces;                             // all occupied squares
-  CastlingRights castling;                        // castling rights flags
+  Bitboard allPieces;       // all occupied squares
+  CastlingRights castling;  // castling rights flags
   uint16_t fullMoveNumber;
   std::array<Square, 2> kingSq;
   uint8_t halfMoveClock;
@@ -191,22 +191,22 @@ inline bool Board::isLegalMove(const Move& m) const {
   if (pt == KING) king_sq = to;
 
   // Bishop/Queen diagonal
-  if (Bitboards::bishop_attacks(king_sq, occ_all) &
-      (pcs[them][BISHOP] | pcs[them][QUEEN]))
+  if ((pcs[them][BISHOP] | pcs[them][QUEEN]) &
+      Bitboards::bishop_attacks(king_sq, occ_all))
     return false;
 
   // Rook/Queen straight
-  if (Bitboards::rook_attacks(king_sq, occ_all) &
-      (pcs[them][ROOK] | pcs[them][QUEEN]))
+  if ((pcs[them][ROOK] | pcs[them][QUEEN]) &
+      Bitboards::rook_attacks(king_sq, occ_all))
     return false;
 
   // Knight attackers
-  if (Bitboards::knight_attacks(king_sq) & pcs[them][KNIGHT]) return false;
+  if (pcs[them][KNIGHT] & Bitboards::knight_attacks(king_sq)) return false;
 
   // Pawn attackers
-  if (Bitboards::pawn_attacks_mask(king_sq, us) & pcs[them][PAWN]) return false;
+  if (pcs[them][PAWN] & Bitboards::pawn_attacks_mask(king_sq, us)) return false;
 
-  if (Bitboards::king_attacks(king_sq) & pcs[them][KING]) return false;
+  if (pcs[them][KING] & Bitboards::king_attacks(king_sq)) return false;
 
   return true;
 }
