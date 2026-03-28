@@ -57,8 +57,14 @@ int main(int argc, char** argv) {
   Bitboards::init_magic_tables();
   int depth = argc > 1 ? std::stoi(argv[1]) : 3;
   std::string startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
-  std::string secondFEN = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - ";
-  std::string selectedFEN = argc > 2 ? argv[2] : startFEN;
+  std::string selectedFEN = startFEN;
+  if (argc > 2) {
+    selectedFEN = argv[2];
+    for (int i = 3; i < argc; ++i) {
+      selectedFEN += " ";
+      selectedFEN += argv[i];
+    }
+  }
   Board board = FEN::parse(selectedFEN);
 
   // Generate root moves once

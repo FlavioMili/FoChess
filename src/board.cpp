@@ -117,7 +117,9 @@ void Board::makeMove(const Move& m) {
     else if (from == H1) castling.whiteKingside = false;
     else if (from == A8) castling.blackQueenside = false;
     else if (from == H8) castling.blackKingside = false;
-  } else if (captured_piece == ROOK) {
+  }
+
+  if (captured_piece == ROOK) {
     if (to == A1) castling.whiteQueenside = false;
     else if (to == H1) castling.whiteKingside = false;
     else if (to == A8) castling.blackQueenside = false;
