@@ -13,14 +13,11 @@
 #include "types.h"
 #include "zobrist.h"
 
-// ---------------- Constructor ----------------
-Board::Board() {}
-
 void Board::makeMove(const Move& m) {
   const Square from = m.from_sq();
   const Square to = m.to_sq();
   const Color us = sideToMove;
-  const Color them = Color(BLACK - us);
+  const auto them = Color(BLACK - us);
   const Piece pt = piece_on(from);
   const auto mt = m.type();
 

@@ -23,9 +23,9 @@ class UCIengine {
   void isready();
   void position(std::string& line);
   void go(std::string& line);
-  void stop();
+  void stop() const;
   void ucinewgame();
-  void info();
+  void info() const;
 
   void search_thread_func(uint8_t depth, int64_t time_ms);
 

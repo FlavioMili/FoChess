@@ -20,7 +20,7 @@
 #include "movegen.h"
 #include "zobrist.h"
 
-uint64_t perft(Board& board, int depth) {
+uint64_t perft(const Board& board, int depth) {
   if (depth == 0) return 1;
 
   std::array<Move, MAX_MOVES> moves;

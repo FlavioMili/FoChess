@@ -22,7 +22,7 @@ protected:
         Zobrist::init_zobrist_keys();
     }
 
-    void TestBoardGeneration(std::string fen, size_t expected_moves) {
+    void TestBoardGeneration(const std::string& fen, size_t expected_moves) const {
         Board board = FEN::parse(fen);
         std::array<Move, MAX_MOVES> moves;
         size_t n_moves = MoveGen::generate_all(board, moves);

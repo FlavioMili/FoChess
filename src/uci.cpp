@@ -150,7 +150,7 @@ void UCIengine::search_thread_func(uint8_t depth, [[maybe_unused]] int64_t time_
   is_searching = false;
 }
 
-void UCIengine::info() {
+void UCIengine::info() const {
   int depth =
       FoChess::g_search_stats.highest_depth.load(std::memory_order_relaxed);
 
@@ -169,7 +169,7 @@ void UCIengine::info() {
             << std::endl;
 }
 
-void UCIengine::stop() {
+void UCIengine::stop() const {
   if (is_searching) {
     FoChess::g_search_state.should_stop.store(true, std::memory_order_relaxed);
 

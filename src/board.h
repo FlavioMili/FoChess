@@ -30,7 +30,7 @@ struct CastlingRights {
 };
 
 struct Board {
-  Board();
+  Board() = default;
   Board(const Board& other) = default;
 
   void updateOccupancy();
@@ -38,7 +38,6 @@ struct Board {
   Bitboard attacks_to(Square sq, Color attacker_color) const;
 
   bool is_in_check(Color c) const noexcept;
-  
 
   Color color_on(Square sq) const;
   Piece piece_on(Square sq) const;
@@ -129,7 +128,7 @@ inline bool Board::isLegalMove(const Move& m) const {
   const Square from = m.from_sq();
   const Square to = m.to_sq();
   const Color us = sideToMove;
-  const Color them = Color(BLACK - us);
+  const auto them = Color(BLACK - us);
   const Piece pt = piece_on(from);
   const auto mt = m.type();
 

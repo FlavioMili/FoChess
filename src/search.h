@@ -8,6 +8,7 @@
 #pragma once
 #include <atomic>
 #include <chrono>
+#include <climits>
 #include <cstdint>
 
 #include "board.h"
@@ -83,7 +84,7 @@ inline void FoChess::reset_search() {
   // Statistics
   g_search_stats.node_count.store(0, std::memory_order_relaxed);
   g_search_stats.highest_depth.store(0, std::memory_order_relaxed);
-  g_search_stats.best_root_score.store(INT_MIN + 1, std::memory_order_relaxed);
+  g_search_stats.best_root_score.store(INT_MIN+ 1, std::memory_order_relaxed);
   g_search_stats.best_move.store(Move{}, std::memory_order_relaxed);
 }
 
