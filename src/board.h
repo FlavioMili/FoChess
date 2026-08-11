@@ -43,6 +43,7 @@ struct Board {
   Piece piece_on(Square sq) const;
 
   void makeMove(const Move& m);
+  // Requires a pseudo-legal move whose source belongs to sideToMove.
   bool isLegalMove(const Move& m) const;
   bool moveExists(const Move& m) const;
 
@@ -51,9 +52,9 @@ struct Board {
   uint64_t hash;
   Bitboard allPieces {};       // all occupied squares
   CastlingRights castling {};  // castling rights flags
-  uint16_t fullMoveNumber {};
+  uint16_t fullMoveNumber {1};
   std::array<Square, 2> kingSq {NO_SQUARE, NO_SQUARE};
-  uint8_t halfMoveClock {};
+  uint16_t halfMoveClock {};
   Square enPassant = NO_SQUARE;  // en passant target
   Color sideToMove {WHITE};
   Piece captured_piece;
@@ -119,9 +120,12 @@ inline Piece Board::piece_on(Square sq) const {
 }
 
 inline bool Board::moveExists(const Move& m) const {
-  auto to = m.to_sq();
-  return ((m.from_sq() & occupancy[sideToMove]) &&
-          ((to & ~allPieces) || (to & occupancy[BLACK - sideToMove])));
+  if (m.raw() == EMPTY_MOVE) return false;
+
+  const Bitboard from_bb = Bitboards::square_bb(m.from_sq());
+  const Bitboard to_bb = Bitboards::square_bb(m.to_sq());
+  return (from_bb & occupancy[sideToMove]) != 0 &&
+         (to_bb & occupancy[sideToMove]) == 0;
 }
 
 inline bool Board::isLegalMove(const Move& m) const {
@@ -129,42 +133,24 @@ inline bool Board::isLegalMove(const Move& m) const {
   const Square to = m.to_sq();
   const Color us = sideToMove;
   const auto them = Color(BLACK - us);
-  const Piece pt = piece_on(from);
   const auto mt = m.type();
 
   const Bitboard from_bb = Bitboards::square_bb(from);
   const Bitboard to_bb = Bitboards::square_bb(to);
-  const Bitboard from_to_bb = (from_bb | to_bb);
+  // For king safety we only need the resulting occupancy and the opponent's
+  // remaining attackers. Avoid copying and updating the complete piece arrays
+  // for every pseudo-legal move.
+  Bitboard occ_all = (allPieces & ~from_bb) | to_bb;
+  Bitboard captured_bb = to_bb;
 
-  // Copies we will mutate to simulate the move
-  auto pcs = pieces;             // [color][piece]
-  auto occ = occupancy;          // [color]
-  Bitboard occ_all = allPieces;  // union
-
-  // handle capture (normal capture)
-  if (const Bitboard is_capture = (occ[them] & to_bb);
-      is_capture) {
-    Piece capturedP = piece_on(to);
-    pcs[them][capturedP] &= ~to_bb;
-    occ[them] ^= to_bb;
-    occ_all ^= to_bb;
-  }
-
-  // move the piece
-  pcs[us][pt] ^= from_to_bb;
-  occ[us] ^= from_to_bb;
-  occ_all ^= from_to_bb;
-
-  // handle special moves
   if (mt != MoveType::NORMAL) [[unlikely]] {
     switch (mt) {
       case MoveType::EN_PASSANT: {
-        Square capturedSq =
+        const Square capturedSq =
             (us == WHITE) ? Bitboards::down(to) : Bitboards::up(to);
-        Bitboard capturedSq_bb = Bitboards::square_bb(capturedSq);
-        pcs[them][PAWN] &= ~capturedSq_bb;
-        occ[them] ^= capturedSq_bb;
-        occ_all ^= capturedSq_bb;
+        const Bitboard capturedSq_bb = Bitboards::square_bb(capturedSq);
+        captured_bb |= capturedSq_bb;
+        occ_all &= ~capturedSq_bb;
         break;
       }
       case MoveType::CASTLING: {
@@ -177,10 +163,8 @@ inline bool Board::isLegalMove(const Move& m) const {
           rookFrom = (us == WHITE) ? Square::A1 : Square::A8;
           rookTo = (us == WHITE) ? Square::D1 : Square::D8;
         }
-        Bitboard r_bb =
+        const Bitboard r_bb =
             (Bitboards::square_bb(rookFrom) | Bitboards::square_bb(rookTo));
-        pcs[us][ROOK] ^= r_bb;
-        occ[us] ^= r_bb;
         occ_all ^= r_bb;
         break;
       }
@@ -189,26 +173,33 @@ inline bool Board::isLegalMove(const Move& m) const {
     }
   }
 
-  Square king_sq = kingSq[us];
-  if (pt == KING) king_sq = to;
+  const Square king_sq =
+      (pieces[us][KING] & from_bb) ? to : kingSq[us];
+  const Bitboard remaining_enemy = ~captured_bb;
 
   // Bishop/Queen diagonal
-  if ((pcs[them][BISHOP] | pcs[them][QUEEN]) &
+  if (((pieces[them][BISHOP] | pieces[them][QUEEN]) & remaining_enemy) &
       Bitboards::bishop_attacks(king_sq, occ_all))
     return false;
 
   // Rook/Queen straight
-  if ((pcs[them][ROOK] | pcs[them][QUEEN]) &
+  if (((pieces[them][ROOK] | pieces[them][QUEEN]) & remaining_enemy) &
       Bitboards::rook_attacks(king_sq, occ_all))
     return false;
 
   // Knight attackers
-  if (pcs[them][KNIGHT] & Bitboards::knight_attacks(king_sq)) return false;
+  if ((pieces[them][KNIGHT] & remaining_enemy) &
+      Bitboards::knight_attacks(king_sq))
+    return false;
 
   // Pawn attackers
-  if (pcs[them][PAWN] & Bitboards::pawn_attacks_mask(king_sq, us)) return false;
+  if ((pieces[them][PAWN] & remaining_enemy) &
+      Bitboards::pawn_attacks_mask(king_sq, us))
+    return false;
 
-  if (pcs[them][KING] & Bitboards::king_attacks(king_sq)) return false;
+  if ((pieces[them][KING] & remaining_enemy) &
+      Bitboards::king_attacks(king_sq))
+    return false;
 
   return true;
 }

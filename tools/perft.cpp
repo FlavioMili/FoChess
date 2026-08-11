@@ -29,8 +29,11 @@ size_t perft(Board& board, int depth) {
   std::array<Move, MAX_MOVES> moves;
   size_t n = MoveGen::generate_all(board, moves);
 
-  // bulk calculating
-  // if (depth == 1) return n;
+  // Standard bulk counting avoids making every leaf move. Keep the debug walk
+  // so its capture/check counters still inspect each leaf position.
+#ifndef DEBUG
+  if (depth == 1) return n;
+#endif
 
   uint64_t nodes = 0;
 

@@ -8,9 +8,24 @@
 #pragma once
 #include <array>
 
+#if defined(FOCHESS_USE_PEXT) && !defined(__BMI2__)
+#error "FOCHESS_USE_PEXT requires a BMI2-enabled compiler target"
+#endif
+
+#if defined(__BMI2__) && !defined(FOCHESS_FORCE_MAGIC)
+#define FOCHESS_PEXT_ENABLED
+#include <immintrin.h>
+#endif
+
 #include "bitboard.h"
 
 namespace Bitboards {
+
+#if defined(FOCHESS_PEXT_ENABLED)
+inline constexpr bool uses_pext = true;
+#else
+inline constexpr bool uses_pext = false;
+#endif
 
 constexpr Bitboard rook_mask(Square sq) noexcept {
   Bitboard result = 0;
@@ -239,32 +254,86 @@ constexpr std::array<SMagic, 64> bishop_magics = {
     SMagic{0x40201008040200ULL, 0x204820c008600ULL, 55},     // Bishop 63
 };
 
+#if defined(FOCHESS_PEXT_ENABLED)
+template <size_t N>
+constexpr std::array<size_t, N> make_attack_offsets(
+    const std::array<SMagic, N>& magics) {
+  std::array<size_t, N> offsets{};
+  size_t offset = 0;
+  for (size_t square = 0; square < N; ++square) {
+    offsets[square] = offset;
+    offset += size_t{1} << Bitboards::popcount(magics[square].mask);
+  }
+  return offsets;
+}
+
+template <size_t N>
+constexpr size_t attack_table_size(const std::array<SMagic, N>& magics) {
+  size_t size = 0;
+  for (const SMagic& magic : magics)
+    size += size_t{1} << Bitboards::popcount(magic.mask);
+  return size;
+}
+
+constexpr auto rook_attack_offsets = make_attack_offsets(rook_magics);
+constexpr auto bishop_attack_offsets = make_attack_offsets(bishop_magics);
+inline std::array<Bitboard, attack_table_size(rook_magics)> rook_attack_table;
+inline std::array<Bitboard, attack_table_size(bishop_magics)>
+    bishop_attack_table;
+#else
 inline std::array<std::array<Bitboard, 4096>, 64> rook_attack_table;
 inline std::array<std::array<Bitboard, 512>, 64> bishop_attack_table;
+#endif
+
+inline size_t sliding_attack_index(Bitboard occupancy,
+                                   const SMagic& magic) noexcept {
+#if defined(FOCHESS_PEXT_ENABLED)
+  return static_cast<size_t>(_pext_u64(occupancy, magic.mask));
+#else
+  return static_cast<size_t>(((occupancy & magic.mask) * magic.magic) >>
+                             magic.shift);
+#endif
+}
 
 inline void init_magic_tables() {
   for (size_t sq = 0; sq < 64; ++sq) {
     const SMagic& m = rook_magics[sq];
-    int relevant_bits = 64 - m.shift;
+#if defined(FOCHESS_PEXT_ENABLED)
+    const int relevant_bits = Bitboards::popcount(m.mask);
+#else
+    const int relevant_bits = 64 - m.shift;
+#endif
 
     for (size_t i = 0; i < (1ULL << relevant_bits); ++i) {
       Bitboard occ = set_occupancy_from_index(i, m.mask);
       Bitboard attacks = generate_rook_attacks(Square(sq), occ);
-      auto idx = ((occ & m.mask) * m.magic) >> m.shift;
+      const size_t idx = sliding_attack_index(occ, m);
+#if defined(FOCHESS_PEXT_ENABLED)
+      rook_attack_table[rook_attack_offsets[sq] + idx] = attacks;
+#else
       rook_attack_table[sq][idx] = attacks;
+#endif
     }
   }
 
   // Initialize bishop attack table
   for (size_t sq = 0; sq < 64; ++sq) {
     const SMagic& m = bishop_magics[sq];
-    int relevant_bits = 64 - m.shift;
+#if defined(FOCHESS_PEXT_ENABLED)
+    const int relevant_bits = Bitboards::popcount(m.mask);
+#else
+    const int relevant_bits = 64 - m.shift;
+#endif
 
     for (size_t i = 0; i < (1ULL << relevant_bits); ++i) {
       Bitboard occ = set_occupancy_from_index(i, m.mask);
       Bitboard attacks = generate_bishop_attacks(Square(sq), occ);
-      auto idx = ((occ & m.mask) * m.magic) >> m.shift;
+      const size_t idx = sliding_attack_index(occ, m);
+#if defined(FOCHESS_PEXT_ENABLED)
+      bishop_attack_table[bishop_attack_offsets[sq] + idx] = attacks;
+#else
       bishop_attack_table[sq][idx] = attacks;
+#endif
     }
   }
 }
@@ -272,31 +341,42 @@ inline void init_magic_tables() {
 // ------------------------------------------------------------
 ///  lookup functions
 // ------------------------------------------------------------
-constexpr Bitboard rook_attacks(Square sq, Bitboard occ) {
+inline Bitboard rook_attacks(Square sq, Bitboard occ) noexcept {
   const SMagic& m = rook_magics[sq];
-  auto idx = ((occ & m.mask) * m.magic) >> m.shift;
+  const size_t idx = sliding_attack_index(occ, m);
+#if defined(FOCHESS_PEXT_ENABLED)
+  return rook_attack_table[rook_attack_offsets[sq] + idx];
+#else
   return rook_attack_table[sq][idx];
+#endif
 }
 
-constexpr Bitboard bishop_attacks(Square sq, Bitboard occ) {
+inline Bitboard bishop_attacks(Square sq, Bitboard occ) noexcept {
   const SMagic& m = bishop_magics[sq];
-  auto idx = ((occ & m.mask) * m.magic) >> m.shift;
+  const size_t idx = sliding_attack_index(occ, m);
+#if defined(FOCHESS_PEXT_ENABLED)
+  return bishop_attack_table[bishop_attack_offsets[sq] + idx];
+#else
   return bishop_attack_table[sq][idx];
+#endif
 }
 
-constexpr Bitboard queen_attacks(Square sq, Bitboard occ) {
+inline Bitboard queen_attacks(Square sq, Bitboard occ) noexcept {
   return rook_attacks(sq, occ) | bishop_attacks(sq, occ);
 }
 
-constexpr Bitboard rook_moves(Square sq, Bitboard occ, Bitboard friendly) {
+inline Bitboard rook_moves(Square sq, Bitboard occ,
+                           Bitboard friendly) noexcept {
   return rook_attacks(sq, occ) & ~friendly;
 }
 
-constexpr Bitboard bishop_moves(Square sq, Bitboard occ, Bitboard friendly) {
+inline Bitboard bishop_moves(Square sq, Bitboard occ,
+                             Bitboard friendly) noexcept {
   return bishop_attacks(sq, occ) & ~friendly;
 }
 
-constexpr Bitboard queen_moves(Square sq, Bitboard occ, Bitboard friendly) {
+inline Bitboard queen_moves(Square sq, Bitboard occ,
+                            Bitboard friendly) noexcept {
   return queen_attacks(sq, occ) & ~friendly;
 }
 

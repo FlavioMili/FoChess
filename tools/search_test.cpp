@@ -13,11 +13,13 @@
 #include "board.h"
 #include "fen.h"
 #include "helpers.h"
+#include "magic.h"
 #include "tt.h"
 #include "zobrist.h"
 
 int main() {
   Zobrist::init_zobrist_keys();
+  Bitboards::init_magic_tables();
   TranspositionTable tt;
   Board board = FEN::parse(
       "5k1r/1pR1Q1pp/5p2/1p1Rp3/1P1pP2P/r2P1N2/3B1PP1/6K1 b - - 0 31");

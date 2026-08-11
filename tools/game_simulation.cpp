@@ -13,6 +13,7 @@
 #include "board.h"
 #include "fen.h"
 #include "helpers.h"
+#include "magic.h"
 #include "move.h"
 #include "movegen.h"
 #include "search.h"
@@ -20,6 +21,7 @@
 
 // this test is thought for a bland simulation and just test performance, not actual functionality
 int main() {
+  Bitboards::init_magic_tables();
   Board board = FEN::parse();
 
   Zobrist::init_zobrist_keys();

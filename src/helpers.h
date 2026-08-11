@@ -103,7 +103,7 @@ inline std::string move_to_str(const Move& m) {
 }
 
 inline Move uci_to_move(const std::string& s, const Board& board) {
-  if (s.size() < 4) return Move();
+  if (s.size() < 4) return Move::none();
 
   int from_file = s[0] - 'a';
   int from_rank = '8' - s[1];

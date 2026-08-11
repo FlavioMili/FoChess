@@ -1,0 +1,149 @@
+#include <gtest/gtest.h>
+
+#include <array>
+
+#include "fen.h"
+#include "magic.h"
+#include "movegen.h"
+#include "search.h"
+#include "tt.h"
+
+class SearchRegressionTest : public ::testing::Test {
+ protected:
+  static void SetUpTestSuite() { Bitboards::init_magic_tables(); }
+};
+
+TEST_F(SearchRegressionTest, FindsMateInOneAtDepthOne) {
+  Board board = FEN::parse("7k/5Q2/6K1/8/8/8/8/8 w - - 0 1");
+  TranspositionTable tt;
+
+  FoChess::iterative_deepening(1, board, tt);
+  const Move best = FoChess::g_search_stats.best_move.load();
+
+  ASSERT_NE(best.raw(), EMPTY_MOVE);
+  EXPECT_GE(FoChess::g_search_stats.best_root_score.load(),
+            FoChess::MATE_SCORE - 1);
+
+  board.makeMove(best);
+  std::array<Move, MAX_MOVES> replies;
+  EXPECT_EQ(MoveGen::generate_all(board, replies), 0);
+  EXPECT_TRUE(board.is_in_check(board.sideToMove));
+}
+
+TEST_F(SearchRegressionTest, QuiescenceSearchesQuietCheckEvasions) {
+  Board board = FEN::parse("7k/8/8/8/8/8/7R/K7 b - - 0 1");
+  ASSERT_TRUE(board.is_in_check(board.sideToMove));
+
+  FoChess::reset_search();
+  const int score = FoChess::quiescence_search(
+      board, -FoChess::INF_SCORE, FoChess::INF_SCORE);
+  FoChess::end_search();
+
+  EXPECT_GT(FoChess::g_search_stats.node_count.load(), 1);
+  EXPECT_GT(score, -FoChess::MATE_SCORE + 128);
+}
+
+TEST_F(SearchRegressionTest, QuiescenceSearchesQuietPromotions) {
+  Board board = FEN::parse("7k/P7/8/8/8/8/8/7K w - - 0 1");
+
+  FoChess::reset_search();
+  const int score = FoChess::quiescence_search(
+      board, -FoChess::INF_SCORE, FoChess::INF_SCORE);
+  FoChess::end_search();
+
+  EXPECT_GT(score, 1000);
+}
+
+TEST_F(SearchRegressionTest, AbortedSearchDoesNotStoreRootEntry) {
+  Board board = FEN::parse();
+  TranspositionTable tt;
+
+  FoChess::reset_search();
+  FoChess::g_search_state.should_stop.store(true, std::memory_order_relaxed);
+  FoChess::alpha_beta_pruning(5, board, tt);
+  FoChess::end_search();
+
+  EXPECT_EQ(tt.probe(board.hash), nullptr);
+}
+
+TEST_F(SearchRegressionTest, RecognizesSupportedRuleDraws) {
+  TranspositionTable tt;
+
+  Board fifty_move = FEN::parse("7k/8/8/8/8/8/8/R6K w - - 100 51");
+  EXPECT_EQ(FoChess::alpha_beta_pruning(
+                3, fifty_move, tt, -FoChess::INF_SCORE, FoChess::INF_SCORE),
+            0);
+
+  Board bare_minor = FEN::parse("7k/8/8/8/8/8/8/B6K w - - 0 1");
+  EXPECT_EQ(FoChess::alpha_beta_pruning(
+                3, bare_minor, tt, -FoChess::INF_SCORE, FoChess::INF_SCORE),
+            0);
+}
+
+TEST_F(SearchRegressionTest, RecognizesStalemateAtDepthZero) {
+  Board board = FEN::parse("7k/5K2/6Q1/8/8/8/8/8 b - - 0 1");
+  ASSERT_FALSE(board.is_in_check(board.sideToMove));
+  ASSERT_FALSE(MoveGen::has_legal_move(board));
+
+  FoChess::reset_search();
+  EXPECT_EQ(FoChess::quiescence_search(
+                board, -FoChess::INF_SCORE, FoChess::INF_SCORE),
+            0);
+  FoChess::end_search();
+}
+
+TEST_F(SearchRegressionTest, TranspositionTablePreservesExactScores) {
+  const std::array<const char*, 3> positions = {
+      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+      "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1"};
+
+  for (const char* fen : positions) {
+    Board board = FEN::parse(fen);
+    FoChess::reset_search();
+    const int without_tt = FoChess::alpha_beta_pruning(
+        4, board, -FoChess::INF_SCORE, FoChess::INF_SCORE);
+    FoChess::end_search();
+
+    TranspositionTable tt;
+    FoChess::reset_search();
+    const int with_tt = FoChess::alpha_beta_pruning(
+        4, board, tt, -FoChess::INF_SCORE, FoChess::INF_SCORE);
+    FoChess::end_search();
+
+    EXPECT_EQ(with_tt, without_tt) << fen;
+  }
+}
+
+TEST_F(SearchRegressionTest, SelectiveSearchPreservesBenchmarkResults) {
+  struct Case {
+    const char* fen;
+    Move expected_move;
+    int expected_score;
+  };
+  const std::array<Case, 6> cases = {{
+      {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+       Move(B1, C3), 6},
+      {"r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+       Move(E2, A6), 97},
+      {"8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1", Move(B4, F4),
+       194},
+      {"r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1",
+       Move(C4, C5), -939},
+      {"rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8",
+       Move(D7, C8, QUEEN), 995},
+      {"r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10",
+       Move(C3, D5), 20},
+  }};
+
+  for (const Case& test : cases) {
+    Board board = FEN::parse(test.fen);
+    TranspositionTable tt;
+    FoChess::iterative_deepening(5, board, tt);
+    EXPECT_EQ(FoChess::g_search_stats.best_move.load(), test.expected_move)
+        << test.fen;
+    EXPECT_EQ(FoChess::g_search_stats.best_root_score.load(),
+              test.expected_score)
+        << test.fen;
+  }
+}

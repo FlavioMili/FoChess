@@ -34,6 +34,8 @@ HEADER_FILES := $(SRC_DIR)/bitboard.h \
 # Explicitly list test and tool files
 TEST_FILES := $(TESTS_DIR)/tt_test.cpp \
               $(TESTS_DIR)/movegen_test.cpp \
+              $(TESTS_DIR)/search_regression_test.cpp \
+              $(TESTS_DIR)/uci_test.cpp \
               $(TESTS_DIR)/fen_parsing_and_printing.cpp \
               $(TESTS_DIR)/test_perft.cpp \
               $(TESTS_DIR)/moving_test.cpp

@@ -7,15 +7,22 @@
 
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <thread>
 
 #include "board.h"
 #include "tt.h"
 
+namespace UCI {
+int64_t allocate_time(int64_t remaining_ms, int64_t increment_ms,
+                      int moves_to_go) noexcept;
+}
+
 class UCIengine {
  public:
   UCIengine();
+  ~UCIengine();
   void loop();
 
  private:
@@ -23,11 +30,11 @@ class UCIengine {
   void isready();
   void position(std::string& line);
   void go(std::string& line);
-  void stop() const;
+  void stop();
   void ucinewgame();
   void info() const;
 
-  void search_thread_func(uint8_t depth, int64_t time_ms);
+  void search_thread_func(int depth, int64_t time_ms);
 
   Board board;
   TranspositionTable tt;

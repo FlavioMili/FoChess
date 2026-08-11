@@ -50,6 +50,7 @@ int main() {
     std::cout << "FEN: " << line << "\n";
     std::cout << "Seen nodes: " << FoChess::g_search_stats.node_count << "\n";
     std::cout << "Best move: " << PrintingHelpers::move_to_str(best) << "\n";
+    std::cout << "Score: " << FoChess::g_search_stats.best_root_score << "\n";
     std::cout << "Time: " << ms << " ms\n\n";
   }
 

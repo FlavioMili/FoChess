@@ -23,4 +23,7 @@ namespace MoveGen {
 size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves);
 size_t generate_pseudolegal(const Board& board, std::array<Move, MAX_MOVES>& candidate_moves);
 size_t generate_captures(const Board& board, std::array<Move, MAX_MOVES>& moves);
+// Captures and promotions suitable for quiescence search.
+size_t generate_noisy(const Board& board, std::array<Move, MAX_MOVES>& moves);
+bool has_legal_move(const Board& board);
 }  // namespace MoveGen

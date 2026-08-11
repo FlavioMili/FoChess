@@ -23,7 +23,11 @@ constexpr uint16_t EMPTY_MOVE = 0xFFFF;
  */
 class Move {
  public:
-  constexpr Move() { move = EMPTY_MOVE; };
+  // Move-list arrays intentionally leave unused slots uninitialized. Use
+  // Move::none() whenever an actual sentinel value is required.
+  constexpr Move() noexcept = default;
+
+  static constexpr Move none() noexcept { return Move(EMPTY_MOVE); }
 
   // Constructor for Normal, Castling, and En Passant moves
   constexpr Move(Square from, Square to, MoveType type = NORMAL)

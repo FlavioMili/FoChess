@@ -25,13 +25,14 @@ TEST_F(MovingTest, HashChanges) {
     std::string startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
     Board board = FEN::parse(startFEN);
 
-    uint64_t hash1 = Zobrist::generate_hash(board);
-
-    board.makeMove(Move(Square::E2, Square::E3));
-    uint64_t hash2 = Zobrist::generate_hash(board);
-    EXPECT_NE(hash1, hash2);
-
-    board.makeMove(Move(Square::E3, Square::E8));
-    uint64_t hash3 = Zobrist::generate_hash(board);
-    EXPECT_NE(hash2, hash3);
+    uint64_t previous_hash = board.hash;
+    for (const char* uci : {"e2e4", "e7e5", "g1f3", "b8c6"}) {
+      const Move move = PrintingHelpers::uci_to_move(uci, board);
+      ASSERT_TRUE(board.moveExists(move)) << uci;
+      ASSERT_TRUE(board.isLegalMove(move)) << uci;
+      board.makeMove(move);
+      EXPECT_NE(previous_hash, board.hash) << uci;
+      EXPECT_EQ(board.hash, Zobrist::generate_hash(board)) << uci;
+      previous_hash = board.hash;
+    }
 }

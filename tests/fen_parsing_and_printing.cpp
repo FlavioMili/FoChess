@@ -49,3 +49,12 @@ TEST_F(FENTest, RoundTrip) {
     EXPECT_FALSE(noCastleBoard.castling.whiteKingside);
     EXPECT_FALSE(noCastleBoard.castling.whiteQueenside);
 }
+
+TEST_F(FENTest, ParsesAndPrintsMoveClocks) {
+    const std::string fen = "8/8/8/8/8/8/8/K6k b - - 87 42";
+    const Board board = FEN::parse(fen);
+
+    EXPECT_EQ(board.halfMoveClock, 87);
+    EXPECT_EQ(board.fullMoveNumber, 42);
+    EXPECT_EQ(FEN::to_fen(board), fen);
+}

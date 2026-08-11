@@ -7,7 +7,9 @@
 
 #include "fen.h"
 
+#include <algorithm>
 #include <cstddef>
+#include <limits>
 #include <sstream>
 
 #include "board.h"
@@ -99,6 +101,19 @@ Board parse(const std::string& fen) {
     board.enPassant = static_cast<Square>(r * 8 + f);
   }
 
+  unsigned int halfmove = 0;
+  unsigned int fullmove = 1;
+  if (ss >> halfmove) {
+    board.halfMoveClock = static_cast<uint16_t>(std::min(
+        halfmove, static_cast<unsigned int>(
+                      std::numeric_limits<uint16_t>::max())));
+  }
+  if (ss >> fullmove) {
+    board.fullMoveNumber = static_cast<uint16_t>(std::clamp(
+        fullmove, 1U,
+        static_cast<unsigned int>(std::numeric_limits<uint16_t>::max())));
+  }
+
   board.hash = Zobrist::generate_hash(board);
 
   return board;
@@ -166,6 +181,11 @@ std::string to_fen(const Board& board) {
     fen += static_cast<char>('a' + f);
     fen += static_cast<char>('8' - r);
   }
+
+  fen += ' ';
+  fen += std::to_string(board.halfMoveClock);
+  fen += ' ';
+  fen += std::to_string(board.fullMoveNumber);
 
   return fen;
 }
