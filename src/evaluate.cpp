@@ -7,7 +7,9 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cstddef>
+#include <cstdint>
 #include "board.h"
 #include "types.h"
   
@@ -283,14 +285,100 @@ int king_attack_penalty(int attack_units, int attacker_count) {
   return attacker_count >= 2 ? attack_units * attacker_count : attack_units;
 }
 
+struct PawnKingEvaluation {
+  int middlegame = 0;
+  int endgame = 0;
+  uint8_t white_attack_units = 0;
+  uint8_t black_attack_units = 0;
+};
+
+struct PawnKingCacheEntry {
+  Bitboard white_pawns = 0;
+  Bitboard black_pawns = 0;
+  int middlegame = 0;
+  int endgame = 0;
+  uint16_t king_key = 0;
+  uint8_t white_attack_units = 0;
+  uint8_t black_attack_units = 0;
+  bool valid = false;
+};
+
+constexpr size_t PAWN_KING_CACHE_SIZE = 2048;
+static_assert((PAWN_KING_CACHE_SIZE & (PAWN_KING_CACHE_SIZE - 1)) == 0);
+constexpr int PAWN_KING_CACHE_BITS =
+    std::countr_zero(PAWN_KING_CACHE_SIZE);
+thread_local std::array<PawnKingCacheEntry, PAWN_KING_CACHE_SIZE>
+    pawn_king_cache{};
+
+PawnKingEvaluation evaluate_pawns_and_shelter(const Board& board) {
+  const Bitboard white_pawns = board.pieces[WHITE][PAWN];
+  const Bitboard black_pawns = board.pieces[BLACK][PAWN];
+  const uint16_t king_key = static_cast<uint16_t>(board.kingSq[WHITE]) |
+                            static_cast<uint16_t>(
+                                static_cast<uint16_t>(board.kingSq[BLACK])
+                                << 7);
+  uint64_t mixed = white_pawns ^ (black_pawns << 23) ^
+                   (black_pawns >> 41) ^
+                   (static_cast<uint64_t>(king_key) *
+                    0xD6E8FEB86659FD93ULL);
+  mixed ^= mixed >> 32;
+  mixed *= 0x9E3779B97F4A7C15ULL;
+  const size_t index =
+      static_cast<size_t>(mixed >> (64 - PAWN_KING_CACHE_BITS));
+  PawnKingCacheEntry& cached = pawn_king_cache[index];
+  if (cached.valid && cached.white_pawns == white_pawns &&
+      cached.black_pawns == black_pawns && cached.king_key == king_key) {
+    return {cached.middlegame, cached.endgame, cached.white_attack_units,
+            cached.black_attack_units};
+  }
+
+  PawnKingEvaluation result;
+  for (size_t color = WHITE; color <= BLACK; ++color) {
+    const int sign = color == WHITE ? 1 : -1;
+    Bitboard pawns = board.pieces[color][PAWN];
+    while (pawns != 0) {
+      const Square square = Bitboards::pop_lsb(pawns);
+      size_t table_square = static_cast<size_t>(square);
+      if (color == BLACK) table_square ^= 56U;
+      result.middlegame +=
+          sign * (middlegame_values[PAWN] + pawn_table[table_square]);
+      result.endgame +=
+          sign * (endgame_values[PAWN] + pawn_table[table_square]);
+    }
+  }
+
+  add_pawn_structure(board, WHITE, 1, result.middlegame, result.endgame);
+  add_pawn_structure(board, BLACK, -1, result.middlegame, result.endgame);
+  result.middlegame +=
+      king_shelter(board, WHITE) - king_shelter(board, BLACK);
+
+  const Bitboard white_ring = Bitboards::king_attacks(board.kingSq[WHITE]);
+  const Bitboard black_ring = Bitboards::king_attacks(board.kingSq[BLACK]);
+  result.white_attack_units = static_cast<uint8_t>(Bitboards::popcount(
+      pawn_attack_map(white_pawns, WHITE) & black_ring));
+  result.black_attack_units = static_cast<uint8_t>(Bitboards::popcount(
+      pawn_attack_map(black_pawns, BLACK) & white_ring));
+
+  cached = {white_pawns,
+            black_pawns,
+            result.middlegame,
+            result.endgame,
+            king_key,
+            result.white_attack_units,
+            result.black_attack_units,
+            true};
+  return result;
+}
+
 }  // namespace
 
 int bland_evaluate(const Board& board) {
-  int middlegame = 0;
-  int endgame = 0;
+  const PawnKingEvaluation pawn_king = evaluate_pawns_and_shelter(board);
+  int middlegame = pawn_king.middlegame;
+  int endgame = pawn_king.endgame;
   int phase = 0;
 
-  for (size_t piece = PAWN; piece <= KING; ++piece) {
+  for (size_t piece = KNIGHT; piece <= KING; ++piece) {
     for (size_t color = WHITE; color <= BLACK; ++color) {
       const int sign = color == WHITE ? 1 : -1;
       Bitboard pieces = board.pieces[color][piece];
@@ -317,14 +405,10 @@ int bland_evaluate(const Board& board) {
     endgame -= 50;
   }
 
-  add_pawn_structure(board, WHITE, 1, middlegame, endgame);
-  add_pawn_structure(board, BLACK, -1, middlegame, endgame);
   const Bitboard white_ring = Bitboards::king_attacks(board.kingSq[WHITE]);
   const Bitboard black_ring = Bitboards::king_attacks(board.kingSq[BLACK]);
-  int white_attack_units = Bitboards::popcount(
-      pawn_attack_map(board.pieces[WHITE][PAWN], WHITE) & black_ring);
-  int black_attack_units = Bitboards::popcount(
-      pawn_attack_map(board.pieces[BLACK][PAWN], BLACK) & white_ring);
+  int white_attack_units = pawn_king.white_attack_units;
+  int black_attack_units = pawn_king.black_attack_units;
   int white_attackers = white_attack_units != 0;
   int black_attackers = black_attack_units != 0;
 
@@ -332,8 +416,7 @@ int bland_evaluate(const Board& board) {
                white_attack_units, white_attackers);
   add_mobility(board, BLACK, -1, middlegame, endgame, white_ring,
                black_attack_units, black_attackers);
-  middlegame += king_shelter(board, WHITE) - king_shelter(board, BLACK) +
-                king_attack_penalty(white_attack_units, white_attackers) -
+  middlegame += king_attack_penalty(white_attack_units, white_attackers) -
                 king_attack_penalty(black_attack_units, black_attackers);
 
   phase = std::min(phase, MAX_PHASE);

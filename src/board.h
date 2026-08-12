@@ -32,6 +32,7 @@ struct CastlingRights {
 struct Board {
   Board() = default;
   Board(const Board& other) = default;
+  Board& operator=(const Board& other) = default;
 
   void updateOccupancy();
 

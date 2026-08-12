@@ -1,5 +1,12 @@
-# Compiler
-CXX := g++
+# Compiler. Clang produces substantially smaller/faster LTO hot paths on the
+# current move generator; an explicit `make CXX=g++` still overrides it.
+ifeq ($(origin CXX), default)
+CXX := $(shell if command -v clang++ >/dev/null 2>&1 && \
+                     command -v ld.lld >/dev/null 2>&1; then \
+                  echo clang++; else echo g++; fi)
+endif
+
+LTO_LINKER_FLAG := $(if $(findstring clang,$(notdir $(CXX))),-fuse-ld=lld,)
 
 # Project Directories
 SRC_DIR   := src
@@ -65,7 +72,8 @@ DEBUG_TEST    := $(DEBUG_ROOT)/functionality_test
 
 # ----------------- Release Configuration -----------------
 RELEASE_ROOT  := $(BUILD_DIR)/release
-RELEASE_FLAGS := $(CXX_BASE_FLAGS) -O3 -march=native -DNDEBUG -flto -fno-exceptions -fno-rtti
+RELEASE_FLAGS := $(CXX_BASE_FLAGS) -O3 -march=native -DNDEBUG -flto \
+                 -fno-exceptions -fno-rtti
 RELEASE_OBJS  := $(patsubst $(SRC_DIR)/%.cpp,$(RELEASE_ROOT)/objs/%.o,$(SRC_FILES))
 RELEASE_TOOLS := $(patsubst $(TOOLS_DIR)/%.cpp,$(RELEASE_ROOT)/%,$(TOOL_FILES))
 
@@ -96,7 +104,7 @@ $(RELEASE_ROOT)/objs/%.o: $(SRC_DIR)/%.cpp $(HEADER_FILES)
 
 $(RELEASE_ROOT)/%: $(TOOLS_DIR)/%.cpp $(RELEASE_OBJS)
 	@mkdir -p $(dir $@)
-	$(CXX) $(RELEASE_FLAGS) $^ -o $@
+	$(CXX) $(RELEASE_FLAGS) $(LTO_LINKER_FLAG) $^ -o $@
 
 # ----------------- Tests -----------------
 test: $(DEBUG_TEST)
@@ -117,7 +125,7 @@ branching: $(BRANCHING_BENCH)
 
 $(BRANCHING_BENCH): $(TOOLS_DIR)/branching_bench.cpp $(SRC_FILES) $(HEADER_FILES)
 	@mkdir -p $(dir $@)
-	$(CXX) $(PERF_FLAGS) -DSEARCH_DIAGNOSTICS $< $(SRC_FILES) -o $@
+	$(CXX) $(PERF_FLAGS) $(LTO_LINKER_FLAG) -DSEARCH_DIAGNOSTICS $< $(SRC_FILES) -o $@
 
 $(PERF_ROOT)/objs/%.o: $(SRC_DIR)/%.cpp $(HEADER_FILES)
 	@mkdir -p $(dir $@)
@@ -125,7 +133,7 @@ $(PERF_ROOT)/objs/%.o: $(SRC_DIR)/%.cpp $(HEADER_FILES)
 
 $(PERF_ROOT)/%: $(TOOLS_DIR)/%.cpp $(PERF_OBJS)
 	@mkdir -p $(dir $@)
-	$(CXX) $(PERF_FLAGS) $^ -o $@
+	$(CXX) $(PERF_FLAGS) $(LTO_LINKER_FLAG) $^ -o $@
 
 # ----------------- Clean -----------------
 clean:
