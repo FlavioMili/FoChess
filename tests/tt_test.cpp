@@ -90,3 +90,18 @@ TEST_F(TranspositionTableTest, ClusterKeepsCollidingPositions) {
     EXPECT_EQ(first->best_move, first_move);
     EXPECT_EQ(second->best_move, second_move);
 }
+
+TEST_F(TranspositionTableTest, QuiescenceEntryCannotEvictDeeperEntry) {
+    TranspositionTable tt(1);
+    const Move deep_move(E2, E4);
+
+    tt.store(11, 42, deep_move, 7, TT_EXACT);
+    tt.store_quiescence(11, -20, Move(A2, A3), TT_ALPHA);
+
+    const TTEntry* entry = tt.probe(11);
+    ASSERT_NE(entry, nullptr);
+    EXPECT_EQ(entry->score, 42);
+    EXPECT_EQ(entry->best_move, deep_move);
+    EXPECT_EQ(entry->depth, 7);
+    EXPECT_EQ(entry->flag, TT_EXACT);
+}

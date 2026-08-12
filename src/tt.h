@@ -77,6 +77,23 @@ class TranspositionTable {
     write(*replacement, key, score, move, depth, flag);
   }
 
+  // Quiescence entries may use an empty slot or refresh another quiescence
+  // entry, but never evict a deeper principal-search result.
+  void store_quiescence(uint64_t key, int score, Move move, TTFlag flag) {
+    TTCluster& cluster = table[key & mask];
+    TTEntry* empty = nullptr;
+
+    for (TTEntry& entry : cluster.entries) {
+      if (entry.hash_key == key && entry.flag != TT_NONE) {
+        if (entry.depth == 0) write(entry, key, score, move, 0, flag);
+        return;
+      }
+      if (entry.flag == TT_NONE && empty == nullptr) empty = &entry;
+    }
+
+    if (empty != nullptr) write(*empty, key, score, move, 0, flag);
+  }
+
   TTEntry* probe(uint64_t key) {
     TTCluster& cluster = table[key & mask];
     for (TTEntry& entry : cluster.entries) {

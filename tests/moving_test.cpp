@@ -6,6 +6,9 @@
 // -----------------------------------------------------------------------------
 
 #include <gtest/gtest.h>
+
+#include <array>
+
 #include "board.h"
 #include "fen.h"
 #include "helpers.h"
@@ -34,6 +37,30 @@ TEST_F(MovingTest, HashChanges) {
       EXPECT_NE(previous_hash, board.hash) << uci;
       EXPECT_EQ(board.hash, Zobrist::generate_hash(board)) << uci;
       previous_hash = board.hash;
+    }
+}
+
+TEST_F(MovingTest, SpecialMovesAndCastlingChangesMaintainHash) {
+    struct Case {
+      const char* fen;
+      const char* uci;
+    };
+    const std::array<Case, 6> cases = {{
+        {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1", "e1f1"},
+        {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1", "a1a2"},
+        {"r3k2r/8/8/8/8/8/r7/R3K2R b KQkq - 0 1", "a2a1"},
+        {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1", "e1g1"},
+        {"4k3/P7/8/8/8/8/8/4K3 w - - 0 1", "a7a8q"},
+        {"4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1", "e5d6"},
+    }};
+
+    for (const Case& test : cases) {
+      Board board = FEN::parse(test.fen);
+      const Move move = PrintingHelpers::uci_to_move(test.uci, board);
+      ASSERT_TRUE(board.moveExists(move)) << test.uci;
+      ASSERT_TRUE(board.isLegalMove(move)) << test.uci;
+      board.makeMove(move);
+      EXPECT_EQ(board.hash, Zobrist::generate_hash(board)) << test.uci;
     }
 }
 

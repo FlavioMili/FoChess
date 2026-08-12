@@ -177,45 +177,110 @@ void add_pawn_structure(const Board& board, Color color, int sign,
 }
 
 void add_mobility(const Board& board, Color color, int sign, int& middlegame,
-                  int& endgame) {
+                  int& endgame, Bitboard enemy_king_ring,
+                  int& attack_units, int& attacker_count) {
   const Bitboard available = ~board.occupancy[color];
   Bitboard pieces = board.pieces[color][KNIGHT];
   while (pieces != 0) {
     const Square square = Bitboards::pop_lsb(pieces);
-    const int mobility =
-        Bitboards::popcount(Bitboards::knight_attacks(square) & available);
+    const Bitboard attacks = Bitboards::knight_attacks(square);
+    const int mobility = Bitboards::popcount(attacks & available);
     middlegame += sign * 4 * mobility;
     endgame += sign * 4 * mobility;
+    const int ring_hits = Bitboards::popcount(attacks & enemy_king_ring);
+    if (ring_hits != 0) {
+      ++attacker_count;
+      attack_units += 2 * ring_hits;
+    }
   }
 
   pieces = board.pieces[color][BISHOP];
   while (pieces != 0) {
     const Square square = Bitboards::pop_lsb(pieces);
-    const int mobility = Bitboards::popcount(
-        Bitboards::bishop_attacks(square, board.allPieces) & available);
+    const Bitboard attacks =
+        Bitboards::bishop_attacks(square, board.allPieces);
+    const int mobility = Bitboards::popcount(attacks & available);
     middlegame += sign * 4 * mobility;
     endgame += sign * 5 * mobility;
+    const int ring_hits = Bitboards::popcount(attacks & enemy_king_ring);
+    if (ring_hits != 0) {
+      ++attacker_count;
+      attack_units += 2 * ring_hits;
+    }
   }
 
   pieces = board.pieces[color][ROOK];
   while (pieces != 0) {
     const Square square = Bitboards::pop_lsb(pieces);
-    const int mobility = Bitboards::popcount(
-        Bitboards::rook_attacks(square, board.allPieces) & available);
+    const Bitboard attacks = Bitboards::rook_attacks(square, board.allPieces);
+    const int mobility = Bitboards::popcount(attacks & available);
     middlegame += sign * 2 * mobility;
     endgame += sign * 4 * mobility;
+    const int ring_hits = Bitboards::popcount(attacks & enemy_king_ring);
+    if (ring_hits != 0) {
+      ++attacker_count;
+      attack_units += 3 * ring_hits;
+    }
   }
 
   pieces = board.pieces[color][QUEEN];
   while (pieces != 0) {
     const Square square = Bitboards::pop_lsb(pieces);
-    const int mobility = Bitboards::popcount(
-        (Bitboards::bishop_attacks(square, board.allPieces) |
-         Bitboards::rook_attacks(square, board.allPieces)) &
-        available);
+    const Bitboard attacks =
+        Bitboards::bishop_attacks(square, board.allPieces) |
+        Bitboards::rook_attacks(square, board.allPieces);
+    const int mobility = Bitboards::popcount(attacks & available);
     middlegame += sign * mobility;
     endgame += sign * 2 * mobility;
+    const int ring_hits = Bitboards::popcount(attacks & enemy_king_ring);
+    if (ring_hits != 0) {
+      ++attacker_count;
+      attack_units += 5 * ring_hits;
+    }
   }
+}
+
+Bitboard pawn_attack_map(Bitboard pawns, Color color) {
+  return color == WHITE
+             ? Bitboards::bb_up_left(pawns) | Bitboards::bb_up_right(pawns)
+             : Bitboards::bb_down_left(pawns) |
+                   Bitboards::bb_down_right(pawns);
+}
+
+int king_shelter(const Board& board, Color color) {
+  const Square king = board.kingSq[color];
+  const int king_rank = Bitboards::rank_of(king);
+  const int king_file = Bitboards::file_of(king);
+  const int forward = color == WHITE ? 1 : -1;
+  const Bitboard friendly_pawns = board.pieces[color][PAWN];
+  const Color enemy = static_cast<Color>(BLACK - color);
+
+  int safety = 0;
+  for (int file = std::max(0, king_file - 1);
+       file <= std::min(7, king_file + 1); ++file) {
+    const int first_rank = king_rank + forward;
+    const int second_rank = king_rank + 2 * forward;
+    if (first_rank >= 0 && first_rank < 8) {
+      const auto square = static_cast<Square>((7 - first_rank) * 8 + file);
+      if ((friendly_pawns & Bitboards::square_bb(square)) != 0) safety += 12;
+    }
+    if (second_rank >= 0 && second_rank < 8) {
+      const auto square = static_cast<Square>((7 - second_rank) * 8 + file);
+      if ((friendly_pawns & Bitboards::square_bb(square)) != 0) safety += 5;
+    }
+
+    const Bitboard file_mask = file_masks[static_cast<size_t>(file)];
+    if ((friendly_pawns & file_mask) == 0) {
+      safety -= 10;
+      if ((board.pieces[enemy][PAWN] & file_mask) == 0) safety -= 6;
+    }
+  }
+
+  return safety;
+}
+
+int king_attack_penalty(int attack_units, int attacker_count) {
+  return attacker_count >= 2 ? attack_units * attacker_count : attack_units;
 }
 
 }  // namespace
@@ -254,8 +319,22 @@ int bland_evaluate(const Board& board) {
 
   add_pawn_structure(board, WHITE, 1, middlegame, endgame);
   add_pawn_structure(board, BLACK, -1, middlegame, endgame);
-  add_mobility(board, WHITE, 1, middlegame, endgame);
-  add_mobility(board, BLACK, -1, middlegame, endgame);
+  const Bitboard white_ring = Bitboards::king_attacks(board.kingSq[WHITE]);
+  const Bitboard black_ring = Bitboards::king_attacks(board.kingSq[BLACK]);
+  int white_attack_units = Bitboards::popcount(
+      pawn_attack_map(board.pieces[WHITE][PAWN], WHITE) & black_ring);
+  int black_attack_units = Bitboards::popcount(
+      pawn_attack_map(board.pieces[BLACK][PAWN], BLACK) & white_ring);
+  int white_attackers = white_attack_units != 0;
+  int black_attackers = black_attack_units != 0;
+
+  add_mobility(board, WHITE, 1, middlegame, endgame, black_ring,
+               white_attack_units, white_attackers);
+  add_mobility(board, BLACK, -1, middlegame, endgame, white_ring,
+               black_attack_units, black_attackers);
+  middlegame += king_shelter(board, WHITE) - king_shelter(board, BLACK) +
+                king_attack_penalty(white_attack_units, white_attackers) -
+                king_attack_penalty(black_attack_units, black_attackers);
 
   phase = std::min(phase, MAX_PHASE);
   const int score =

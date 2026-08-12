@@ -60,7 +60,10 @@ struct Board {
   uint16_t halfMoveClock {};
   Square enPassant = NO_SQUARE;  // en passant target
   Color sideToMove {WHITE};
+#ifdef DEBUG
+  // Used only by the debug perft capture counter.
   Piece captured_piece;
+#endif
 };
 
 inline void Board::updateOccupancy() {

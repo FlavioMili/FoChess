@@ -19,7 +19,9 @@ void Board::makeNullMove() {
     enPassant = NO_SQUARE;
   }
   hash ^= Zobrist::sideToMove_key;
+#ifdef DEBUG
   captured_piece = NO_PIECE;
+#endif
   sideToMove = static_cast<Color>(BLACK - sideToMove);
 }
 
@@ -31,46 +33,43 @@ void Board::makeMove(const Move& m) {
   const Piece pt = piece_on(from);
   const auto mt = m.type();
 
-  const CastlingRights old_cr = castling;
   const Square old_ep = enPassant;
 
-  // XOR out the current state from the hash
-  hash ^= Zobrist::sideToMove_key;
-  if (old_ep != NO_SQUARE) hash ^= Zobrist::enPassant_keys[old_ep];
-  hash ^= Zobrist::castling_keys[PrintingHelpers::encode_castling(old_cr)];
+  uint64_t new_hash = hash ^ Zobrist::sideToMove_key;
+  if (old_ep != NO_SQUARE) new_hash ^= Zobrist::enPassant_keys[old_ep];
 
   const Bitboard from_bb = Bitboards::square_bb(from);
   const Bitboard to_bb = Bitboards::square_bb(to);
   const Bitboard from_to_bb = (from_bb | to_bb);
 
   enPassant = NO_SQUARE;
-  captured_piece = NO_PIECE;
+  Piece captured = NO_PIECE;
   const Bitboard is_capture = (occupancy[them] & to_bb);
 
   halfMoveClock = (pt == PAWN || is_capture) ? 0 : halfMoveClock + 1;
 
-  if (is_capture) {
-    captured_piece = piece_on(to);
-    pieces[them][captured_piece] &= ~to_bb;
+  if (is_capture) [[unlikely]] {
+    captured = piece_on(to);
+    pieces[them][captured] ^= to_bb;
     occupancy[them] ^= to_bb;
     allPieces ^= to_bb;
-    hash ^=
-        Zobrist::pieces_keys[Zobrist::piece_to_idx(them, captured_piece, to)];
+    new_hash ^=
+        Zobrist::pieces_keys[Zobrist::piece_to_idx(them, captured, to)];
   }
 
   pieces[us][pt] ^= from_to_bb;
   occupancy[us] ^= from_to_bb;
   allPieces ^= from_to_bb;
-  hash ^= Zobrist::pieces_keys[Zobrist::piece_to_idx(us, pt, from)];
-  hash ^= Zobrist::pieces_keys[Zobrist::piece_to_idx(us, pt, to)];
+  new_hash ^= Zobrist::pieces_keys[Zobrist::piece_to_idx(us, pt, from)];
+  new_hash ^= Zobrist::pieces_keys[Zobrist::piece_to_idx(us, pt, to)];
 
   if (mt != MoveType::NORMAL) {
     switch (mt) {
       case MoveType::PROMOTION:
-        pieces[us][PAWN] &= ~to_bb;
+        pieces[us][PAWN] ^= to_bb;
         pieces[us][m.promotion_type()] |= to_bb;
-        hash ^= Zobrist::pieces_keys[Zobrist::piece_to_idx(us, pt, to)];
-        hash ^= Zobrist::pieces_keys[Zobrist::piece_to_idx(
+        new_hash ^= Zobrist::pieces_keys[Zobrist::piece_to_idx(us, pt, to)];
+        new_hash ^= Zobrist::pieces_keys[Zobrist::piece_to_idx(
             us, m.promotion_type(), to)];
         break;
 
@@ -78,11 +77,11 @@ void Board::makeMove(const Move& m) {
         Square capturedSq =
             (us == WHITE) ? Bitboards::down(to) : Bitboards::up(to);
         Bitboard capturedSq_bb = Bitboards::square_bb(capturedSq);
-        captured_piece = PAWN;
-        pieces[them][PAWN] &= ~capturedSq_bb;
+        captured = PAWN;
+        pieces[them][PAWN] ^= capturedSq_bb;
         occupancy[them] ^= capturedSq_bb;
         allPieces ^= capturedSq_bb;
-        hash ^=
+        new_hash ^=
             Zobrist::pieces_keys[Zobrist::piece_to_idx(them, PAWN, capturedSq)];
         break;
       }
@@ -102,14 +101,23 @@ void Board::makeMove(const Move& m) {
         pieces[us][ROOK] ^= rook_from_to;
         occupancy[us] ^= rook_from_to;
         allPieces ^= rook_from_to;
-        hash ^= Zobrist::pieces_keys[Zobrist::piece_to_idx(us, ROOK, rookFrom)];
-        hash ^= Zobrist::pieces_keys[Zobrist::piece_to_idx(us, ROOK, rookTo)];
+        new_hash ^=
+            Zobrist::pieces_keys[Zobrist::piece_to_idx(us, ROOK, rookFrom)];
+        new_hash ^=
+            Zobrist::pieces_keys[Zobrist::piece_to_idx(us, ROOK, rookTo)];
         break;
       }
       default:
         break;
     }
   }
+
+  const bool may_change_castling =
+      pt == KING || pt == ROOK || captured == ROOK;
+  const uint64_t old_castling_key =
+      may_change_castling
+          ? Zobrist::castling_keys[PrintingHelpers::encode_castling(castling)]
+          : 0;
 
   if (pt == KING) {
     if (us == WHITE) {
@@ -126,7 +134,7 @@ void Board::makeMove(const Move& m) {
     else if (from == H8) castling.blackKingside = false;
   }
 
-  if (captured_piece == ROOK) {
+  if (captured == ROOK) {
     if (to == A1) castling.whiteQueenside = false;
     else if (to == H1) castling.whiteKingside = false;
     else if (to == A8) castling.blackQueenside = false;
@@ -147,9 +155,18 @@ void Board::makeMove(const Move& m) {
     }
   }
 
-  if (enPassant != NO_SQUARE) hash ^= Zobrist::enPassant_keys[enPassant];
-  hash ^= Zobrist::castling_keys[PrintingHelpers::encode_castling(castling)];
+  if (enPassant != NO_SQUARE)
+    new_hash ^= Zobrist::enPassant_keys[enPassant];
+  if (may_change_castling) {
+    const uint64_t new_castling_key =
+        Zobrist::castling_keys[PrintingHelpers::encode_castling(castling)];
+    new_hash ^= old_castling_key ^ new_castling_key;
+  }
 
   fullMoveNumber += us;
   sideToMove = them;
+#ifdef DEBUG
+  captured_piece = captured;
+#endif
+  hash = new_hash;
 }

@@ -111,6 +111,14 @@ PERF_TOOLS := $(patsubst $(TOOLS_DIR)/%.cpp,$(PERF_ROOT)/%,$(TOOL_FILES))
 
 perf: $(PERF_TOOLS)
 
+BRANCHING_BENCH := $(PERF_ROOT)/branching_bench
+
+branching: $(BRANCHING_BENCH)
+
+$(BRANCHING_BENCH): $(TOOLS_DIR)/branching_bench.cpp $(SRC_FILES) $(HEADER_FILES)
+	@mkdir -p $(dir $@)
+	$(CXX) $(PERF_FLAGS) -DSEARCH_DIAGNOSTICS $< $(SRC_FILES) -o $@
+
 $(PERF_ROOT)/objs/%.o: $(SRC_DIR)/%.cpp $(HEADER_FILES)
 	@mkdir -p $(dir $@)
 	$(CXX) $(PERF_FLAGS) -c $< -o $@
@@ -123,4 +131,4 @@ $(PERF_ROOT)/%: $(TOOLS_DIR)/%.cpp $(PERF_OBJS)
 clean:
 	rm -rf $(BUILD_DIR)
 
-.PHONY: all debug release perf clean test
+.PHONY: all debug release perf branching clean test

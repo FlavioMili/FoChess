@@ -20,6 +20,35 @@
 
 namespace FoChess {
 
+#ifdef SEARCH_DIAGNOSTICS
+struct SearchDiagnostics {
+  uint64_t main_nodes = 0;
+  uint64_t quiescence_nodes = 0;
+  uint64_t main_generated_moves = 0;
+  uint64_t main_searched_moves = 0;
+  uint64_t quiescence_generated_moves = 0;
+  uint64_t quiescence_searched_moves = 0;
+  uint64_t quiescence_recursive_moves = 0;
+  uint64_t stand_pat_cutoffs = 0;
+  uint64_t delta_prunes = 0;
+  uint64_t quiescence_beta_cutoffs = 0;
+  uint64_t quiescence_repeats = 0;
+  uint64_t quiescence_tt_cutoffs = 0;
+  uint64_t beta_cutoffs = 0;
+  std::array<uint64_t, 6> cutoff_buckets{};
+  uint64_t lmr_searches = 0;
+  uint64_t lmr_researches = 0;
+  uint64_t null_searches = 0;
+  uint64_t null_cutoffs = 0;
+  uint64_t tt_cutoffs = 0;
+  uint64_t aspiration_searches = 0;
+  uint64_t aspiration_researches = 0;
+};
+
+extern SearchDiagnostics g_search_diagnostics;
+void reset_search_diagnostics();
+#endif
+
 constexpr int MATE_SCORE = 10000000;
 constexpr int INF_SCORE = 2 * MATE_SCORE;
 
@@ -140,6 +169,7 @@ inline void FoChess::iterative_deepening(int max_depth, Board& board,
 
   Move previous_iteration_move = Move::none();
   int stable_iterations = 0;
+  int previous_iteration_score = 0;
 
   for (int depth = 1; depth <= max_depth; ++depth) {
     if (should_stop_search()) break;
@@ -149,7 +179,32 @@ inline void FoChess::iterative_deepening(int max_depth, Board& board,
     const int completed_score =
         g_search_stats.best_root_score.load(std::memory_order_relaxed);
 
-    int score = alpha_beta_pruning(depth, board, tt, -INF_SCORE, INF_SCORE);
+    int score;
+    if (depth >= 4 && previous_iteration_score > -MATE_SCORE + 256 &&
+        previous_iteration_score < MATE_SCORE - 256) {
+      int window = 100;
+      int alpha = std::max(-INF_SCORE, previous_iteration_score - window);
+      int beta = std::min(INF_SCORE, previous_iteration_score + window);
+
+      while (true) {
+#ifdef SEARCH_DIAGNOSTICS
+        ++g_search_diagnostics.aspiration_searches;
+#endif
+        score = alpha_beta_pruning(depth, board, tt, alpha, beta);
+        if (should_stop_search() || (score > alpha && score < beta)) break;
+
+#ifdef SEARCH_DIAGNOSTICS
+        ++g_search_diagnostics.aspiration_researches;
+#endif
+        window *= 2;
+        if (score <= alpha)
+          alpha = std::max(-INF_SCORE, previous_iteration_score - window);
+        else
+          beta = std::min(INF_SCORE, previous_iteration_score + window);
+      }
+    } else {
+      score = alpha_beta_pruning(depth, board, tt, -INF_SCORE, INF_SCORE);
+    }
 
     if (should_stop_search()) {
       g_search_stats.best_move.store(completed_move,
@@ -161,6 +216,7 @@ inline void FoChess::iterative_deepening(int max_depth, Board& board,
 
     g_search_stats.highest_depth.store(depth, std::memory_order_relaxed);
     g_search_stats.best_root_score.store(score, std::memory_order_relaxed);
+    previous_iteration_score = score;
 
     const Move current_move =
         g_search_stats.best_move.load(std::memory_order_relaxed);

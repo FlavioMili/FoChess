@@ -152,6 +152,16 @@ TEST_F(SearchRegressionTest, TaperedEvaluationUsesGamePhaseAndPawnStructure) {
             FoChess::bland_evaluate(blocked_pawn));
 }
 
+TEST_F(SearchRegressionTest, EvaluationRewardsKingShelter) {
+  const Board sheltered =
+      FEN::parse("6k1/5ppp/8/8/8/8/5PPP/6K1 w - - 0 1");
+  const Board exposed =
+      FEN::parse("6k1/5ppp/8/8/5PPP/8/8/6K1 w - - 0 1");
+
+  EXPECT_GT(FoChess::bland_evaluate(sheltered),
+            FoChess::bland_evaluate(exposed));
+}
+
 TEST_F(SearchRegressionTest, TranspositionTablePreservesExactScores) {
   const std::array<const char*, 3> positions = {
       "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
@@ -175,6 +185,28 @@ TEST_F(SearchRegressionTest, TranspositionTablePreservesExactScores) {
   }
 }
 
+TEST_F(SearchRegressionTest, QuiescenceReusesExactTransposition) {
+  Board board = FEN::parse(
+      "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+  TranspositionTable tt;
+
+  FoChess::reset_search();
+  const int first_score = FoChess::quiescence_search(
+      board, tt, -FoChess::INF_SCORE, FoChess::INF_SCORE);
+  const uint64_t first_nodes = FoChess::g_search_stats.node_count.load();
+  FoChess::end_search();
+  ASSERT_GT(first_nodes, 0);
+
+  FoChess::reset_search();
+  const int second_score = FoChess::quiescence_search(
+      board, tt, -FoChess::INF_SCORE, FoChess::INF_SCORE);
+  const uint64_t second_nodes = FoChess::g_search_stats.node_count.load();
+  FoChess::end_search();
+
+  EXPECT_EQ(second_score, first_score);
+  EXPECT_EQ(second_nodes, 0);
+}
+
 TEST_F(SearchRegressionTest, SelectiveSearchPreservesBenchmarkResults) {
   struct Case {
     const char* fen;
@@ -183,17 +215,17 @@ TEST_F(SearchRegressionTest, SelectiveSearchPreservesBenchmarkResults) {
   };
   const std::array<Case, 6> cases = {{
       {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-       Move(B1, C3), 28},
+       Move(B1, C3), 19},
       {"r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
-       Move(E2, A6), 115},
+       Move(E2, A6), 99},
       {"8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1", Move(B4, F4),
-       102},
+       108},
       {"r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1",
-       Move(C4, C5), -951},
+       Move(C4, C5), -949},
       {"rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8",
-       Move(D7, C8, QUEEN), 1045},
+       Move(D7, C8, QUEEN), 1026},
       {"r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10",
-       Move(C3, D5), 69},
+       Move(C3, D5), 86},
   }};
 
   for (const Case& test : cases) {

@@ -10,6 +10,9 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#ifdef SEARCH_DIAGNOSTICS
+#include <unordered_set>
+#endif
 #include <vector>
 
 #include "board.h"
@@ -18,6 +21,16 @@
 #include "tt.h"
 
 namespace FoChess {
+
+#ifdef SEARCH_DIAGNOSTICS
+SearchDiagnostics g_search_diagnostics;
+std::unordered_set<uint64_t> diagnostic_quiescence_hashes;
+
+void reset_search_diagnostics() {
+  g_search_diagnostics = {};
+  diagnostic_quiescence_hashes.clear();
+}
+#endif
 
 namespace {
 
@@ -208,7 +221,13 @@ int score_from_tt(int score, int ply) {
   return score;
 }
 
-int quiescence_impl(Board& board, int alpha, int beta, int ply) {
+int quiescence_impl(Board& board, TranspositionTable* tt, int alpha, int beta,
+                    int ply) {
+#ifdef SEARCH_DIAGNOSTICS
+  ++g_search_diagnostics.quiescence_nodes;
+  if (!diagnostic_quiescence_hashes.insert(board.hash).second)
+    ++g_search_diagnostics.quiescence_repeats;
+#endif
   if ((g_search_stats.node_count.load(std::memory_order_relaxed) & 2047) == 0 &&
       should_stop_search())
     return 0;
@@ -216,11 +235,14 @@ int quiescence_impl(Board& board, int alpha, int beta, int ply) {
   if (is_repetition(board, ply)) return 0;
   record_search_position(board, ply);
 
-  g_search_stats.node_count.fetch_add(1, std::memory_order_relaxed);
-  if (ply >= MAX_SEARCH_PLY) return bland_evaluate(board);
+  if (ply >= MAX_SEARCH_PLY) {
+    g_search_stats.node_count.fetch_add(1, std::memory_order_relaxed);
+    return bland_evaluate(board);
+  }
 
   const bool in_check = board.is_in_check(board.sideToMove);
   if (rule_draw(board)) {
+    g_search_stats.node_count.fetch_add(1, std::memory_order_relaxed);
     if (!in_check || board.halfMoveClock < 100) return 0;
 
     std::array<Move, MAX_MOVES> evasions;
@@ -228,23 +250,70 @@ int quiescence_impl(Board& board, int alpha, int beta, int ply) {
       return -MATE_SCORE + ply;
     return 0;
   }
+
+  const uint64_t hash_key = board.hash;
+  Move tt_move = Move::none();
+  if (tt != nullptr) {
+    TTEntry* tte = tt->probe(hash_key);
+    if (tte != nullptr && tte->depth == 0) {
+      tt_move = tte->best_move;
+      const int tt_score = score_from_tt(tte->score, ply);
+      if (tte->flag == TT_EXACT ||
+          (tte->flag == TT_ALPHA && tt_score <= alpha) ||
+          (tte->flag == TT_BETA && tt_score >= beta)) {
+#ifdef SEARCH_DIAGNOSTICS
+        ++g_search_diagnostics.quiescence_tt_cutoffs;
+#endif
+        return tt_score;
+      }
+    }
+  }
+
+  g_search_stats.node_count.fetch_add(1, std::memory_order_relaxed);
+  const int original_alpha = alpha;
   std::array<Move, MAX_MOVES> moves;
   const size_t count = in_check ? MoveGen::generate_all(board, moves)
-                                : MoveGen::generate_noisy(board, moves);
+                                : MoveGen::generate_noisy(board, moves,
+                                                          in_check);
+#ifdef SEARCH_DIAGNOSTICS
+  g_search_diagnostics.quiescence_generated_moves += count;
+#endif
 
-  if (in_check && count == 0) return -MATE_SCORE + ply;
-  if (!in_check && count == 0 && !MoveGen::has_legal_move(board)) return 0;
+  if (in_check && count == 0) {
+    const int score = -MATE_SCORE + ply;
+    if (tt != nullptr)
+      tt->store_quiescence(hash_key, score_to_tt(score, ply), Move::none(),
+                           TT_EXACT);
+    return score;
+  }
+  if (!in_check && count == 0 && !MoveGen::has_legal_move(board)) {
+    if (tt != nullptr)
+      tt->store_quiescence(hash_key, 0, Move::none(), TT_EXACT);
+    return 0;
+  }
 
   int stand_pat = -INF_SCORE;
   if (!in_check) {
     stand_pat = bland_evaluate(board);
-    if (stand_pat >= beta) return beta;
+    if (stand_pat >= beta) {
+#ifdef SEARCH_DIAGNOSTICS
+      ++g_search_diagnostics.stand_pat_cutoffs;
+#endif
+      if (tt != nullptr)
+        tt->store_quiescence(hash_key, score_to_tt(beta, ply), Move::none(),
+                             TT_BETA);
+      return beta;
+    }
     if (stand_pat > alpha) alpha = stand_pat;
   }
 
-  MovePicker move_picker(board, moves, count, Move::none(), ply);
+  MovePicker move_picker(board, moves, count, tt_move, ply);
+  Move best_move = Move::none();
 
   for (size_t i = 0; i < count; ++i) {
+#ifdef SEARCH_DIAGNOSTICS
+    ++g_search_diagnostics.quiescence_searched_moves;
+#endif
     const Move move = move_picker.next();
     Board child = board;
     child.makeMove(move);
@@ -256,15 +325,35 @@ int quiescence_impl(Board& board, int alpha, int beta, int ply) {
       if (victim != NO_PIECE &&
           stand_pat + DELTA_PIECE_VALUES[victim] + DELTA_MARGIN < alpha &&
           !child.is_in_check(child.sideToMove)) {
+#ifdef SEARCH_DIAGNOSTICS
+        ++g_search_diagnostics.delta_prunes;
+#endif
         continue;
       }
     }
 
-    const int score = -quiescence_impl(child, -beta, -alpha, ply + 1);
+#ifdef SEARCH_DIAGNOSTICS
+    ++g_search_diagnostics.quiescence_recursive_moves;
+#endif
+    const int score = -quiescence_impl(child, tt, -beta, -alpha, ply + 1);
 
     if (g_search_state.should_stop.load(std::memory_order_relaxed)) return 0;
-    if (score >= beta) return beta;
-    if (score > alpha) alpha = score;
+    if (score >= beta) {
+#ifdef SEARCH_DIAGNOSTICS
+      ++g_search_diagnostics.quiescence_beta_cutoffs;
+#endif
+      if (tt != nullptr)
+        tt->store_quiescence(hash_key, score_to_tt(beta, ply), move, TT_BETA);
+      return beta;
+    }
+    if (score > alpha) {
+      alpha = score;
+      best_move = move;
+    }
+  }
+  if (tt != nullptr) {
+    const TTFlag flag = alpha <= original_alpha ? TT_ALPHA : TT_EXACT;
+    tt->store_quiescence(hash_key, score_to_tt(alpha, ply), best_move, flag);
   }
   return alpha;
 }
@@ -479,7 +568,7 @@ int alpha_beta_pruning(int depth, Board& board, int alpha, int beta, int ply,
 }
 
 int quiescence_search(Board& board, int alpha, int beta, int ply) {
-  return quiescence_impl(board, alpha, beta, ply);
+  return quiescence_impl(board, nullptr, alpha, beta, ply);
 }
 
 int alpha_beta_pruning(int depth, Board& board, TranspositionTable& tt,
@@ -515,6 +604,9 @@ int alpha_beta_pruning(int depth, Board& board, TranspositionTable& tt,
       if (tte->flag == TT_EXACT ||
           (tte->flag == TT_ALPHA && tt_score <= alpha) ||
           (tte->flag == TT_BETA && tt_score >= beta)) {
+#ifdef SEARCH_DIAGNOSTICS
+        ++g_search_diagnostics.tt_cutoffs;
+#endif
         if (ply == 0)
           g_search_stats.best_move.store(tt_move, std::memory_order_relaxed);
         return tt_score;
@@ -535,18 +627,32 @@ int alpha_beta_pruning(int depth, Board& board, TranspositionTable& tt,
       const int reduction = 2 + depth / 4;
       const int null_depth = std::max(0, depth - 1 - reduction);
       ++null_searches;
+#ifdef SEARCH_DIAGNOSTICS
+      ++g_search_diagnostics.null_searches;
+#endif
       const int score = -alpha_beta_pruning(
           null_depth, null_board, tt, -beta, -beta + 1, ply + 1, false);
       --null_searches;
       if (g_search_state.should_stop.load(std::memory_order_relaxed)) return 0;
-      if (score >= beta) return beta;
+      if (score >= beta) {
+#ifdef SEARCH_DIAGNOSTICS
+        ++g_search_diagnostics.null_cutoffs;
+#endif
+        return beta;
+      }
     }
   }
 
   FoChess::g_search_stats.node_count.fetch_add(1, std::memory_order_relaxed);
+#ifdef SEARCH_DIAGNOSTICS
+  ++g_search_diagnostics.main_nodes;
+#endif
 
   std::array<Move, MAX_MOVES> moves;
   size_t n = MoveGen::generate_all(board, moves);
+#ifdef SEARCH_DIAGNOSTICS
+  g_search_diagnostics.main_generated_moves += n;
+#endif
   if (n == 0)
     return (board.is_in_check(board.sideToMove)) ? -MATE_SCORE + ply : 0;
 
@@ -560,6 +666,9 @@ int alpha_beta_pruning(int depth, Board& board, TranspositionTable& tt,
   const int original_alpha = alpha;
 
   for (size_t i = 0; i < n; ++i) {
+#ifdef SEARCH_DIAGNOSTICS
+    ++g_search_diagnostics.main_searched_moves;
+#endif
     const Move move = move_picker.next();
     Board tmp = board;
     tmp.makeMove(move);
@@ -573,12 +682,18 @@ int alpha_beta_pruning(int depth, Board& board, TranspositionTable& tt,
           allow_lmr && i >= 3 && !is_capture(board, move) &&
           move.type() != PROMOTION;
       const int reduction = reduce ? late_move_reduction(depth, i) : 0;
+#ifdef SEARCH_DIAGNOSTICS
+      if (reduce) ++g_search_diagnostics.lmr_searches;
+#endif
       score = -alpha_beta_pruning(
           depth - 1 - reduction, tmp, tt, -alpha - 1, -alpha,
           ply + 1);
       if (reduce &&
           !g_search_state.should_stop.load(std::memory_order_relaxed) &&
           score > alpha) {
+#ifdef SEARCH_DIAGNOSTICS
+        ++g_search_diagnostics.lmr_researches;
+#endif
         score = -alpha_beta_pruning(depth - 1, tmp, tt, -alpha - 1, -alpha,
                                     ply + 1);
       }
@@ -600,6 +715,12 @@ int alpha_beta_pruning(int depth, Board& board, TranspositionTable& tt,
       if (score > alpha) {
         alpha = score;
         if (score >= beta) {
+#ifdef SEARCH_DIAGNOSTICS
+          ++g_search_diagnostics.beta_cutoffs;
+          const size_t bucket = i == 0 ? 0 : i == 1 ? 1 : i == 2 ? 2
+                                : i <= 3 ? 3 : i <= 7 ? 4 : 5;
+          ++g_search_diagnostics.cutoff_buckets[bucket];
+#endif
           record_quiet_cutoff(board, move, depth, ply);
           break;
         }
@@ -617,9 +738,9 @@ int alpha_beta_pruning(int depth, Board& board, TranspositionTable& tt,
   return best;
 }
 
-int quiescence_search(Board& board, [[maybe_unused]] TranspositionTable& tt,
-                      int alpha, int beta, int ply) {
-  return quiescence_impl(board, alpha, beta, ply);
+int quiescence_search(Board& board, TranspositionTable& tt, int alpha,
+                      int beta, int ply) {
+  return quiescence_impl(board, &tt, alpha, beta, ply);
 }
 
 }  // namespace FoChess
