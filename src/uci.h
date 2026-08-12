@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "board.h"
 #include "tt.h"
@@ -17,6 +18,8 @@
 namespace UCI {
 int64_t allocate_time(int64_t remaining_ms, int64_t increment_ms,
                       int moves_to_go) noexcept;
+int64_t allocate_hard_time(int64_t remaining_ms,
+                           int64_t soft_time_ms) noexcept;
 }
 
 class UCIengine {
@@ -37,6 +40,7 @@ class UCIengine {
   void search_thread_func(int depth, int64_t time_ms);
 
   Board board;
+  std::vector<uint64_t> position_history;
   TranspositionTable tt;
 
   std::thread search_thread;

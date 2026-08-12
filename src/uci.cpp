@@ -34,9 +34,21 @@ int64_t allocate_time(int64_t remaining_ms, int64_t increment_ms,
   return std::clamp<int64_t>(target, 1, maximum);
 }
 
+int64_t allocate_hard_time(int64_t remaining_ms,
+                           int64_t soft_time_ms) noexcept {
+  if (remaining_ms <= 0 || soft_time_ms <= 0) return 0;
+
+  const int64_t reserve =
+      std::clamp<int64_t>(remaining_ms / 20, 1, 200);
+  const int64_t maximum = std::max<int64_t>(1, remaining_ms - reserve);
+  const int64_t extra = std::min(soft_time_ms / 2,
+                                 std::max<int64_t>(0, maximum - soft_time_ms));
+  return std::clamp<int64_t>(soft_time_ms + extra, 1, maximum);
+}
+
 }  // namespace UCI
 
-UCIengine::UCIengine() : board(FEN::parse()), tt() {}
+UCIengine::UCIengine() : board(FEN::parse()), position_history{board.hash}, tt() {}
 
 UCIengine::~UCIengine() { stop(); }
 
@@ -91,10 +103,14 @@ void UCIengine::position(std::string& line) {
     board = FEN::parse(fenstr);
   }
 
+  position_history.clear();
+  position_history.push_back(board.hash);
+
   // Apply moves if present
   while (ss >> token) {
     if (token == "moves") continue;
     board.makeMove(PrintingHelpers::uci_to_move(token, board));
+    position_history.push_back(board.hash);
   }
 }
 
@@ -135,33 +151,39 @@ void UCIengine::go(std::string& line) {
     }
   }
 
-  int64_t time_for_move = 0;
+  int64_t soft_time_for_move = 0;
+  int64_t hard_time_for_move = 0;
 
   if (movetime > 0) {
     const int64_t reserve =
         std::clamp<int64_t>(movetime / 20, 1, 50);
-    time_for_move = std::max<int64_t>(1, movetime - reserve);
+    hard_time_for_move = std::max<int64_t>(1, movetime - reserve);
   } else if (!infinite) {
     int64_t our_time = (board.sideToMove == WHITE) ? wtime : btime;
     int64_t our_inc = (board.sideToMove == WHITE) ? winc : binc;
 
     if (our_time > 0) {
-      time_for_move = UCI::allocate_time(our_time, our_inc, movestogo);
+      soft_time_for_move = UCI::allocate_time(our_time, our_inc, movestogo);
+      hard_time_for_move =
+          UCI::allocate_hard_time(our_time, soft_time_for_move);
     }
   }
 
-  FoChess::g_search_state.time_limit.store(time_for_move,
+  FoChess::g_search_state.soft_time_limit.store(soft_time_for_move,
+                                                std::memory_order_relaxed);
+  FoChess::g_search_state.time_limit.store(hard_time_for_move,
                                            std::memory_order_relaxed);
   FoChess::reset_search();
   is_searching = true;
 
   search_thread =
-      std::thread(&UCIengine::search_thread_func, this, depth, time_for_move);
+      std::thread(&UCIengine::search_thread_func, this, depth,
+                  hard_time_for_move);
 }
 
 void UCIengine::search_thread_func(int depth,
                                   [[maybe_unused]] int64_t time_ms) {
-  FoChess::iterative_deepening(depth, board, tt, false);
+  FoChess::iterative_deepening(depth, board, tt, false, position_history);
 
   Move best = FoChess::g_search_stats.best_move.load(std::memory_order_relaxed);
 
@@ -205,5 +227,6 @@ void UCIengine::stop() {
 void UCIengine::ucinewgame() {
   stop();  // Justin Case
   board = FEN::parse();
+  position_history.assign(1, board.hash);
   tt.clear();
 }

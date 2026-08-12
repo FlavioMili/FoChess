@@ -73,3 +73,20 @@ TEST_F(TranspositionTableTest, WarmRootSearchReusesExactEntry) {
     EXPECT_EQ(FoChess::g_search_stats.best_move.load(), first_move);
     EXPECT_EQ(FoChess::g_search_stats.node_count.load(), 0);
 }
+
+TEST_F(TranspositionTableTest, ClusterKeepsCollidingPositions) {
+    TranspositionTable tt(1);
+    constexpr uint64_t bucket_count = (1024 * 1024) / sizeof(TTCluster);
+    const Move first_move(A1, A2);
+    const Move second_move(H8, H7);
+
+    tt.store(7, 10, first_move, 4, TT_EXACT);
+    tt.store(7 + bucket_count, 20, second_move, 5, TT_BETA);
+
+    const TTEntry* first = tt.probe(7);
+    const TTEntry* second = tt.probe(7 + bucket_count);
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(second, nullptr);
+    EXPECT_EQ(first->best_move, first_move);
+    EXPECT_EQ(second->best_move, second_move);
+}

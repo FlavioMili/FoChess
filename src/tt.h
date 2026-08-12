@@ -7,6 +7,10 @@
 
 #pragma once
 
+#include <algorithm>
+#include <array>
+#include <bit>
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -34,35 +38,49 @@ struct TTEntry {
         flag(TT_NONE) {}
 };
 
+struct alignas(64) TTCluster {
+  std::array<TTEntry, 4> entries;
+};
+
+static_assert(sizeof(TTEntry) == 16);
+static_assert(sizeof(TTCluster) == 64);
+
 class TranspositionTable {
  public:
 #ifdef DEBUG
   int hits = 0;
 #endif
   explicit TranspositionTable(size_t mb_size = 64) {
-    size_t num_entries = (mb_size * 1024 * 1024) / sizeof(TTEntry);
-    // Round down to power of 2
-    num_entries = 1ULL << (63 - __builtin_clzll(num_entries));
-    table.resize(num_entries);
-    mask = num_entries - 1;
+    const size_t requested_clusters = std::max<size_t>(
+        1, (mb_size * 1024 * 1024) / sizeof(TTCluster));
+    const size_t cluster_count = std::bit_floor(requested_clusters);
+    table.resize(cluster_count);
+    mask = cluster_count - 1;
   }
 
   void store(uint64_t key, int score, Move move, uint8_t depth, TTFlag flag) {
-    size_t index = key & mask;
-    TTEntry& entry = table[index];
-    if (entry.hash_key != key || depth >= entry.depth) {
-      entry.hash_key = key;
-      entry.score = score;
-      entry.best_move = move;
-      entry.depth = depth;
-      entry.flag = flag;
+    TTCluster& cluster = table[key & mask];
+    TTEntry* replacement = &cluster.entries[0];
+
+    for (TTEntry& entry : cluster.entries) {
+      if (entry.hash_key == key && entry.flag != TT_NONE) {
+        if (depth >= entry.depth) write(entry, key, score, move, depth, flag);
+        return;
+      }
+      if (entry.flag == TT_NONE) {
+        replacement = &entry;
+        break;
+      }
+      if (entry.depth < replacement->depth) replacement = &entry;
     }
+
+    write(*replacement, key, score, move, depth, flag);
   }
 
   TTEntry* probe(uint64_t key) {
-    size_t index = key & mask;
-    TTEntry& entry = table[index];
-    if (entry.hash_key == key) {
+    TTCluster& cluster = table[key & mask];
+    for (TTEntry& entry : cluster.entries) {
+      if (entry.hash_key != key || entry.flag == TT_NONE) continue;
 #ifdef DEBUG
       hits++;
 #endif
@@ -75,10 +93,19 @@ class TranspositionTable {
 #ifdef DEBUG
     hits = 0;
 #endif
-    std::fill(table.begin(), table.end(), TTEntry());
+    std::fill(table.begin(), table.end(), TTCluster());
   }
 
  private:
-  std::vector<TTEntry> table;
+  static void write(TTEntry& entry, uint64_t key, int score, Move move,
+                    uint8_t depth, TTFlag flag) {
+    entry.hash_key = key;
+    entry.score = score;
+    entry.best_move = move;
+    entry.depth = depth;
+    entry.flag = flag;
+  }
+
+  std::vector<TTCluster> table;
   size_t mask;
 };

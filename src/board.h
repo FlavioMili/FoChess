@@ -43,6 +43,9 @@ struct Board {
   Piece piece_on(Square sq) const;
 
   void makeMove(const Move& m);
+  // Search-only pass: clears en passant and flips the side/hash, but does not
+  // advance game clocks because it is not a legal move in the game history.
+  void makeNullMove();
   // Requires a pseudo-legal move whose source belongs to sideToMove.
   bool isLegalMove(const Move& m) const;
   bool moveExists(const Move& m) const;

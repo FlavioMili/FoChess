@@ -36,3 +36,29 @@ TEST_F(MovingTest, HashChanges) {
       previous_hash = board.hash;
     }
 }
+
+TEST_F(MovingTest, NullMoveMaintainsHashAndBoardState) {
+    Board board = FEN::parse(
+        "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 7 2");
+    const auto pieces = board.pieces;
+    const auto occupancy = board.occupancy;
+    const Bitboard all_pieces = board.allPieces;
+    const CastlingRights castling = board.castling;
+    const uint16_t halfmove_clock = board.halfMoveClock;
+    const uint16_t fullmove_number = board.fullMoveNumber;
+
+    board.makeNullMove();
+
+    EXPECT_EQ(board.sideToMove, BLACK);
+    EXPECT_EQ(board.enPassant, NO_SQUARE);
+    EXPECT_EQ(board.pieces, pieces);
+    EXPECT_EQ(board.occupancy, occupancy);
+    EXPECT_EQ(board.allPieces, all_pieces);
+    EXPECT_EQ(board.castling.whiteKingside, castling.whiteKingside);
+    EXPECT_EQ(board.castling.whiteQueenside, castling.whiteQueenside);
+    EXPECT_EQ(board.castling.blackKingside, castling.blackKingside);
+    EXPECT_EQ(board.castling.blackQueenside, castling.blackQueenside);
+    EXPECT_EQ(board.halfMoveClock, halfmove_clock);
+    EXPECT_EQ(board.fullMoveNumber, fullmove_number);
+    EXPECT_EQ(board.hash, Zobrist::generate_hash(board));
+}

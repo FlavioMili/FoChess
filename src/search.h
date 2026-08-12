@@ -11,6 +11,7 @@
 #include <chrono>
 #include <climits>
 #include <cstdint>
+#include <span>
 
 #include "board.h"
 #include "move.h"
@@ -25,6 +26,7 @@ constexpr int INF_SCORE = 2 * MATE_SCORE;
 struct SearchState {
   std::atomic<bool> searching{false};
   std::chrono::steady_clock::time_point search_start;
+  std::atomic<int64_t> soft_time_limit{0};
   std::atomic<int64_t> time_limit{0};
   std::atomic<bool> should_stop{false};
 };
@@ -57,20 +59,25 @@ void reset_search();
 void reset_search_heuristics();
 void end_search();
 bool should_stop_search();
+void prepare_repetition_history(uint64_t root_hash,
+                                std::span<const uint64_t> history);
 
 int bland_evaluate(const Board& board);
+int static_exchange_evaluation(const Board& board, const Move& move);
 
 // Version without TT
 int alpha_beta_pruning(int depth, Board& board, int alpha = -INF_SCORE,
-                       int beta = INF_SCORE, int ply = 0);
+                       int beta = INF_SCORE, int ply = 0,
+                       bool allow_null = true);
 
 // Version with TT
 int alpha_beta_pruning(int depth, Board& board, TranspositionTable& tt,
                        int alpha = -INF_SCORE, int beta = INF_SCORE,
-                       int ply = 0);
+                       int ply = 0, bool allow_null = true);
 
 void iterative_deepening(int max_depth, Board& board, TranspositionTable& tt,
-                         bool initialize = true);
+                         bool initialize = true,
+                         std::span<const uint64_t> history = {});
 
 int quiescence_search(Board& board, int alpha, int beta, int ply = 0);
 int quiescence_search(Board& board, TranspositionTable& tt, int alpha,
@@ -80,6 +87,7 @@ int quiescence_search(Board& board, TranspositionTable& tt, int alpha,
 
 inline void FoChess::reset_search() {
   reset_search_heuristics();
+  prepare_repetition_history(0, {});
   // State
   g_search_state.searching.store(true, std::memory_order_relaxed);
   g_search_state.search_start = std::chrono::steady_clock::now();
@@ -116,8 +124,10 @@ inline bool FoChess::should_stop_search() {
 
 inline void FoChess::iterative_deepening(int max_depth, Board& board,
                                          TranspositionTable& tt,
-                                         bool initialize) {
+                                         bool initialize,
+                                         std::span<const uint64_t> history) {
   if (initialize) reset_search();
+  prepare_repetition_history(board.hash, history);
 
   // Always retain a legal fallback in case the first iteration is interrupted.
   std::array<Move, MAX_MOVES> root_moves;
@@ -127,6 +137,9 @@ inline void FoChess::iterative_deepening(int max_depth, Board& board,
     g_search_stats.best_root_score.store(bland_evaluate(board),
                                          std::memory_order_relaxed);
   }
+
+  Move previous_iteration_move = Move::none();
+  int stable_iterations = 0;
 
   for (int depth = 1; depth <= max_depth; ++depth) {
     if (should_stop_search()) break;
@@ -148,6 +161,20 @@ inline void FoChess::iterative_deepening(int max_depth, Board& board,
 
     g_search_stats.highest_depth.store(depth, std::memory_order_relaxed);
     g_search_stats.best_root_score.store(score, std::memory_order_relaxed);
+
+    const Move current_move =
+        g_search_stats.best_move.load(std::memory_order_relaxed);
+    if (current_move == previous_iteration_move)
+      ++stable_iterations;
+    else
+      stable_iterations = 0;
+    previous_iteration_move = current_move;
+
+    const int64_t soft_limit =
+        g_search_state.soft_time_limit.load(std::memory_order_relaxed);
+    if (soft_limit > 0 && stable_iterations >= 1 &&
+        g_search_stats.elapsed_ms(g_search_state) >= soft_limit)
+      break;
   }
 
   end_search();

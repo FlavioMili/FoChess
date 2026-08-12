@@ -13,6 +13,16 @@
 #include "types.h"
 #include "zobrist.h"
 
+void Board::makeNullMove() {
+  if (enPassant != NO_SQUARE) {
+    hash ^= Zobrist::enPassant_keys[enPassant];
+    enPassant = NO_SQUARE;
+  }
+  hash ^= Zobrist::sideToMove_key;
+  captured_piece = NO_PIECE;
+  sideToMove = static_cast<Color>(BLACK - sideToMove);
+}
+
 void Board::makeMove(const Move& m) {
   const Square from = m.from_sq();
   const Square to = m.to_sq();
