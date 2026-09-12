@@ -158,17 +158,16 @@ Move* generate_pawn_quiet_moves(const Board& board, Move* move_list) {
 Move* generate_pawn_quiet_promotions(const Board& board, Move* move_list) {
   const Color us = board.sideToMove;
   const Bitboard empty = ~board.allPieces;
-  const int promotion_rank = (us == WHITE) ? 7 : 0;
-  Bitboard pawns = board.pieces[us][PAWN];
-
-  while (pawns) {
-    const Square from = Bitboards::pop_lsb(pawns);
-    Bitboard pushes = Bitboards::pawn_moves(from, us, empty);
-    while (pushes) {
-      const Square to = Bitboards::pop_lsb(pushes);
-      if (Bitboards::rank_of(to) == promotion_rank)
-        move_list = add_promotions(from, to, move_list);
-    }
+  // Only penultimate-rank pawns can make a quiet promotion. Batch their single
+  // pushes instead of enumerating ordinary pawn moves that will be discarded.
+  Bitboard pushes = us == WHITE
+      ? Bitboards::bb_up(board.pieces[us][PAWN]) & Bitboards::RANK_8 & empty
+      : Bitboards::bb_down(board.pieces[us][PAWN]) & Bitboards::RANK_1 & empty;
+  const int delta = us == WHITE ? 8 : -8;
+  while (pushes) {
+    const Square to = Bitboards::pop_lsb(pushes);
+    const Square from = static_cast<Square>(static_cast<int>(to) + delta);
+    move_list = add_promotions(from, to, move_list);
   }
   return move_list;
 }
@@ -318,7 +317,12 @@ size_t generate_all(const Board& board, std::array<Move, MAX_MOVES>& moves) {
   }
 
   const bool can_castle = has_castling_rights(board, us) && !in_check;
-  if (!in_check && pinned == 0 && board.enPassant == NO_SQUARE) [[likely]] {
+  // A double push sets a FEN target even when no pawn can capture there.
+  // Only an actually emitted en-passant move invalidates the safe prefix.
+  if (!in_check && pinned == 0 &&
+      (board.enPassant == NO_SQUARE ||
+       (Bitboards::pawn_attacks_mask(board.enPassant, them) &
+        board.pieces[us][PAWN]) == 0)) [[likely]] {
     size_t idx = static_cast<size_t>(king_start - start);
     for (Move* candidate = king_start; candidate != end; ++candidate) {
       if (board.isLegalMove(*candidate)) moves[idx++] = *candidate;
