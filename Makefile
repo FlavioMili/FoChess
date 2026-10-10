@@ -1,12 +1,14 @@
 # Compiler. Clang produces substantially smaller/faster LTO hot paths on the
 # current move generator; an explicit `make CXX=g++` still overrides it.
+# Clang LTO links through LLD when installed, otherwise through the system
+# linker's LLVMgold plugin.
 ifeq ($(origin CXX), default)
-CXX := $(shell if command -v clang++ >/dev/null 2>&1 && \
-                     command -v ld.lld >/dev/null 2>&1; then \
+CXX := $(shell if command -v clang++ >/dev/null 2>&1; then \
                   echo clang++; else echo g++; fi)
 endif
 
-LTO_LINKER_FLAG := $(if $(findstring clang,$(notdir $(CXX))),-fuse-ld=lld,)
+HAVE_LLD := $(shell command -v ld.lld >/dev/null 2>&1 && echo yes)
+LTO_LINKER_FLAG := $(if $(and $(findstring clang,$(notdir $(CXX))),$(HAVE_LLD)),-fuse-ld=lld,)
 
 # Project Directories
 SRC_DIR   := src
@@ -70,9 +72,16 @@ DEBUG_OBJS    := $(patsubst $(SRC_DIR)/%.cpp,$(DEBUG_ROOT)/objs/%.o,$(SRC_FILES)
 DEBUG_TOOLS   := $(patsubst $(TOOLS_DIR)/%.cpp,$(DEBUG_ROOT)/%,$(TOOL_FILES))
 DEBUG_TEST    := $(DEBUG_ROOT)/functionality_test
 
+# Position-dependent code addresses the attack tables directly, and the move
+# arrays on the stack need no canary. Neither protection matters for an engine.
+# Board copies made with 512-bit stores cannot forward to the 8-byte field
+# loads that follow on Zen 5's 256-bit datapath, so cap vectors at 256 bits.
+SPEED_FLAGS   := -fno-pie -fno-stack-protector -mprefer-vector-width=256
+SPEED_LDFLAGS := -no-pie
+
 # ----------------- Release Configuration -----------------
 RELEASE_ROOT  := $(BUILD_DIR)/release
-RELEASE_FLAGS := $(CXX_BASE_FLAGS) -O3 -march=native -DNDEBUG -flto \
+RELEASE_FLAGS := $(CXX_BASE_FLAGS) -O3 -march=native -DNDEBUG -flto $(SPEED_FLAGS) \
                  -fno-exceptions -fno-rtti
 RELEASE_OBJS  := $(patsubst $(SRC_DIR)/%.cpp,$(RELEASE_ROOT)/objs/%.o,$(SRC_FILES))
 RELEASE_TOOLS := $(patsubst $(TOOLS_DIR)/%.cpp,$(RELEASE_ROOT)/%,$(TOOL_FILES))
@@ -91,11 +100,11 @@ $(DEBUG_ROOT)/objs/%.o: $(SRC_DIR)/%.cpp $(HEADER_FILES)
 
 $(DEBUG_ROOT)/%: $(TOOLS_DIR)/%.cpp $(DEBUG_OBJS)
 	@mkdir -p $(dir $@)
-	$(CXX) $(DEBUG_FLAGS) $^ -o $@
+	$(CXX) $(DEBUG_FLAGS) $(filter %.cpp %.o,$^) -o $@
 
 $(DEBUG_TEST): $(TEST_FILES) $(DEBUG_OBJS)
 	@mkdir -p $(dir $@)
-	$(CXX) $(DEBUG_FLAGS) $(GTEST_FLAGS) $^ $(GTEST_LIBS) -o $@
+	$(CXX) $(DEBUG_FLAGS) $(GTEST_FLAGS) $(filter %.cpp %.o,$^) $(GTEST_LIBS) -o $@
 
 # ----------------- Release Build Rules -----------------
 $(RELEASE_ROOT)/objs/%.o: $(SRC_DIR)/%.cpp $(HEADER_FILES)
@@ -104,7 +113,10 @@ $(RELEASE_ROOT)/objs/%.o: $(SRC_DIR)/%.cpp $(HEADER_FILES)
 
 $(RELEASE_ROOT)/%: $(TOOLS_DIR)/%.cpp $(RELEASE_OBJS)
 	@mkdir -p $(dir $@)
-	$(CXX) $(RELEASE_FLAGS) $(LTO_LINKER_FLAG) $^ -o $@
+	$(CXX) $(RELEASE_FLAGS) $(SPEED_LDFLAGS) $(LTO_LINKER_FLAG) $(filter %.cpp %.o,$^) -o $@
+
+# Shared perft implementation used by the runner and its suite.
+$(DEBUG_ROOT)/perft $(RELEASE_ROOT)/perft $(BUILD_DIR)/perf/perft $(DEBUG_TEST): $(TOOLS_DIR)/perft.h
 
 # ----------------- Tests -----------------
 test: $(DEBUG_TEST)
@@ -113,7 +125,7 @@ test: $(DEBUG_TEST)
 
 # ----------------- Performance -----------------
 PERF_ROOT  := $(BUILD_DIR)/perf
-PERF_FLAGS := $(CXX_BASE_FLAGS) -O3 -march=native -g -DNDEBUG -flto
+PERF_FLAGS := $(CXX_BASE_FLAGS) -O3 -march=native -g -DNDEBUG -flto $(SPEED_FLAGS)
 PERF_OBJS  := $(patsubst $(SRC_DIR)/%.cpp,$(PERF_ROOT)/objs/%.o,$(SRC_FILES))
 PERF_TOOLS := $(patsubst $(TOOLS_DIR)/%.cpp,$(PERF_ROOT)/%,$(TOOL_FILES))
 
@@ -125,7 +137,7 @@ branching: $(BRANCHING_BENCH)
 
 $(BRANCHING_BENCH): $(TOOLS_DIR)/branching_bench.cpp $(SRC_FILES) $(HEADER_FILES)
 	@mkdir -p $(dir $@)
-	$(CXX) $(PERF_FLAGS) $(LTO_LINKER_FLAG) -DSEARCH_DIAGNOSTICS $< $(SRC_FILES) -o $@
+	$(CXX) $(PERF_FLAGS) $(SPEED_LDFLAGS) $(LTO_LINKER_FLAG) -DSEARCH_DIAGNOSTICS $< $(SRC_FILES) -o $@
 
 $(PERF_ROOT)/objs/%.o: $(SRC_DIR)/%.cpp $(HEADER_FILES)
 	@mkdir -p $(dir $@)
@@ -133,7 +145,7 @@ $(PERF_ROOT)/objs/%.o: $(SRC_DIR)/%.cpp $(HEADER_FILES)
 
 $(PERF_ROOT)/%: $(TOOLS_DIR)/%.cpp $(PERF_OBJS)
 	@mkdir -p $(dir $@)
-	$(CXX) $(PERF_FLAGS) $(LTO_LINKER_FLAG) $^ -o $@
+	$(CXX) $(PERF_FLAGS) $(SPEED_LDFLAGS) $(LTO_LINKER_FLAG) $(filter %.cpp %.o,$^) -o $@
 
 # ----------------- Clean -----------------
 clean:

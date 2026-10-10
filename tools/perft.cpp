@@ -5,104 +5,126 @@
 //  Read the LICENSE file in the project root please.
 // -----------------------------------------------------------------------------
 
+#include <algorithm>
 #include <array>
+#include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <iomanip>
 #include <iostream>
 #include <string>
+#include <thread>
+#include <vector>
 
 #include "board.h"
 #include "fen.h"
 #include "helpers.h"
 #include "magic.h"
 #include "movegen.h"
+#include "zobrist.h"
+#include "perft.h"
 
 #ifdef DEBUG
-  int captures = 0;
-  int checks = 0;
+uint64_t captures = 0;
+uint64_t checks = 0;
 #endif
 
-size_t perft(Board& board, int depth) {
-  // non-bulk calculating
-  if (depth == 0) return 1;
-
-  std::array<Move, MAX_MOVES> moves;
-  size_t n = MoveGen::generate_all(board, moves);
-
-  // Standard bulk counting avoids making every leaf move. Keep the debug walk
-  // so its capture/check counters still inspect each leaf position.
-#ifndef DEBUG
-  if (depth == 1) return n;
-#endif
-
-  uint64_t nodes = 0;
-
-  for (size_t i = 0; i < n; ++i) {
-    Move move = moves[i];
-    Board copy = board;
-    copy.makeMove(move);
-
-    // If I comment this out I reach 46M nodes/sec
-#ifdef DEBUG
-    if (depth == 1) {
-      captures += (copy.captured_piece != NO_PIECE);
-      checks += (copy.is_in_check(copy.sideToMove));
-    }
-#endif
-
-    nodes += perft(copy, depth - 1);
-  }
-
-  return nodes;
-}
-
+// Usage: perft <depth> [FEN...] [-t threads]
+// Runs single-threaded unless -t asks for more.
 int main(int argc, char** argv) {
   Bitboards::init_magic_tables();
-  int depth = argc > 1 ? std::stoi(argv[1]) : 3;
-  std::string startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
-  std::string selectedFEN = startFEN;
-  if (argc > 2) {
-    selectedFEN = argv[2];
-    for (int i = 3; i < argc; ++i) {
-      selectedFEN += " ";
-      selectedFEN += argv[i];
+  Zobrist::init_zobrist_keys();
+  int depth = 3;
+  unsigned threads = 1;
+  std::string selectedFEN;
+  std::vector<std::string> positional;
+  for (int i = 1; i < argc; ++i) {
+    const std::string arg = argv[i];
+    if (arg == "-t" && i + 1 < argc) {
+      threads = static_cast<unsigned>(std::max(1, std::stoi(argv[++i])));
+    } else {
+      positional.push_back(arg);
     }
   }
+  if (!positional.empty()) depth = std::stoi(positional[0]);
+  for (size_t i = 1; i < positional.size(); ++i) {
+    if (i > 1) selectedFEN += " ";
+    selectedFEN += positional[i];
+  }
+  if (selectedFEN.empty())
+    selectedFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
+  if (depth < 0) {
+    std::cerr << "Depth must be nonnegative\n";
+    return 1;
+  }
+#ifdef DEBUG
+  threads = 1;
+#endif
   Board board = FEN::parse(selectedFEN);
 
-  // Generate root moves once
-  std::array<Move, MAX_MOVES> rootMoves;
-  size_t nRootMoves = MoveGen::generate_all(board, rootMoves);
-
+  const auto start = std::chrono::steady_clock::now();
   uint64_t totalNodes = 0;
 
-  for (size_t i = 0; i < nRootMoves; ++i) {
-    Move move = rootMoves[i];
-    Board copy = board;
-    copy.makeMove(move);
-
-
-#ifdef DEBUG
-    int capturesBefore = captures;
-    int checksBefore = checks;
-#endif
-
-    // Count nodes under this move
-    uint64_t nodes = perft(copy, depth - 1);
-    totalNodes += nodes;
-
-    // Print per-root-move count
-    std::cout << std::left << std::setw(4) << PrintingHelpers::move_to_str(move) << ": " << nodes;
+  if (depth == 0) {
+    totalNodes = 1;
+  } else {
+    std::array<Move, MAX_MOVES> rootMoves;
+    size_t nRootMoves = MoveGen::generate_all(board, rootMoves);
 
 #ifdef DEBUG
-    std::cout << " (captures: " << captures - capturesBefore <<
-      ", checks: " << checks - checksBefore << ")";
+    for (size_t i = 0; i < nRootMoves; ++i) {
+      Move move = rootMoves[i];
+      Board copy = board;
+      copy.makeMove(move);
+      uint64_t capturesBefore = captures;
+      uint64_t checksBefore = checks;
+      if (depth == 1) {
+        captures += (copy.captured_piece != NO_PIECE);
+        checks += copy.is_in_check(copy.sideToMove);
+      }
+      uint64_t nodes = perft<false>(copy, depth - 1, [](const Board& leaf) {
+        captures += (leaf.captured_piece != NO_PIECE);
+        checks += leaf.is_in_check(leaf.sideToMove);
+      });
+      totalNodes += nodes;
+      std::cout << std::left << std::setw(4) << PrintingHelpers::move_to_str(move)
+                << ": " << nodes << " (captures: " << captures - capturesBefore
+                << ", checks: " << checks - checksBefore << ")\n";
+    }
+#else
+    std::vector<uint64_t> counts(nRootMoves);
+    std::atomic<size_t> next{0};
+    auto worker = [&] {
+      for (;;) {
+        const size_t i = next.fetch_add(1, std::memory_order_relaxed);
+        if (i >= nRootMoves) return;
+        Board child = board;
+        child.makeMove(rootMoves[i]);
+        counts[i] = perft(child, depth - 1);
+      }
+    };
+    std::vector<std::thread> workers;
+    const unsigned workerCount = std::min(threads, static_cast<unsigned>(nRootMoves));
+    for (unsigned i = 1; i < workerCount; ++i) workers.emplace_back(worker);
+    worker();
+    for (auto& thread : workers) thread.join();
+    for (size_t i = 0; i < nRootMoves; ++i) {
+      totalNodes += counts[i];
+      std::cout << std::left << std::setw(4)
+                << PrintingHelpers::move_to_str(rootMoves[i]) << ": "
+                << counts[i] << '\n';
+    }
 #endif
-
-    std::cout << '\n';
   }
 
+  const double seconds =
+      std::chrono::duration<double>(std::chrono::steady_clock::now() - start)
+          .count();
   std::cout << "\nTotal nodes: " << totalNodes << "\n";
+  std::cout << "Time: " << std::fixed << std::setprecision(3) << seconds
+            << " s, " << std::setprecision(1)
+            << static_cast<double>(totalNodes) / seconds / 1e6 << " Mnps ("
+            << threads << (threads == 1 ? " thread)\n" : " threads)\n");
 
 #ifdef DEBUG
   std::cout << "Total captures: " << captures << "\n";

@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------------
 //  FoChess
-//  Copyright (c) 2025 Flavio Milinanni. All Rights Reserved.
+//  Copyright (c) 2026 Flavio Milinanni. All Rights Reserved.
 //
 //  Read the LICENSE file in the project root please.
 // -----------------------------------------------------------------------------
@@ -28,6 +28,12 @@ struct CastlingRights {
     whiteKingside = whiteQueenside = blackKingside = blackQueenside = false;
   }
 };
+
+constexpr std::array<Piece, 64> make_empty_squares() {
+  std::array<Piece, 64> squares{};
+  squares.fill(NO_PIECE);
+  return squares;
+}
 
 struct Board {
   Board() = default;
@@ -61,6 +67,8 @@ struct Board {
   uint16_t halfMoveClock {};
   Square enPassant = NO_SQUARE;  // en passant target
   Color sideToMove {WHITE};
+  // Piece type on each square, NO_PIECE when empty; mirrors `pieces`.
+  std::array<Piece, 64> squares = make_empty_squares();
 #ifdef DEBUG
   // Used only by the debug perft capture counter.
   Piece captured_piece;
@@ -77,6 +85,13 @@ inline void Board::updateOccupancy() {
                      pieces[BLACK][QUEEN] | pieces[BLACK][KING];
 
   allPieces = occupancy[WHITE] | occupancy[BLACK];
+  squares = make_empty_squares();
+  for (size_t color = WHITE; color <= BLACK; ++color) {
+    for (size_t pt = PAWN; pt <= KING; ++pt) {
+      for (Bitboard bb = pieces[color][pt]; bb;)
+        squares[Bitboards::pop_lsb(bb)] = static_cast<Piece>(pt);
+    }
+  }
   kingSq = {static_cast<Square>(std::countr_zero(pieces[WHITE][KING])),
             static_cast<Square>(std::countr_zero(pieces[BLACK][KING]))};
 }
@@ -113,18 +128,7 @@ inline Color Board::color_on(Square sq) const {
   return NO_COLOR;
 }
 
-inline Piece Board::piece_on(Square sq) const {
-  Bitboard sq_bb = Bitboards::square_bb(sq);
-
-  for (size_t color = WHITE; color <= BLACK; ++color) {
-    for (size_t pt = PAWN; pt <= KING; ++pt) {
-      if (pieces[color][pt] & sq_bb) {
-        return static_cast<Piece>(pt);
-      }
-    }
-  }
-  return NO_PIECE;
-}
+inline Piece Board::piece_on(Square sq) const { return squares[sq]; }
 
 inline bool Board::moveExists(const Move& m) const {
   if (m.raw() == EMPTY_MOVE) return false;

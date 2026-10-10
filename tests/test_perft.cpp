@@ -20,25 +20,7 @@
 #include "movegen.h"
 #include "zobrist.h"
 
-uint64_t perft(const Board& board, int depth) {
-  if (depth == 0) return 1;
-
-  std::array<Move, MAX_MOVES> moves;
-  size_t n = MoveGen::generate_all(board, moves);
-
-  if (depth == 1) {
-    return n;
-  }
-
-  uint64_t nodes = 0;
-  for (size_t i = 0; i < n; ++i) {
-    Board copy = board;
-    copy.makeMove(moves[i]);
-    nodes += perft(copy, depth - 1);
-  }
-
-  return nodes;
-}
+#include "../tools/perft.h"
 
 class PerftTest : public ::testing::Test {
  protected:

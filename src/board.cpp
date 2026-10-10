@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------------
 //  FoChess
-//  Copyright (c) 2025 Flavio Milinanni. All Rights Reserved.
+//  Copyright (c) 2026 Flavio Milinanni. All Rights Reserved.
 //
 //  Read the LICENSE file in the project root please.
 // -----------------------------------------------------------------------------
@@ -58,6 +58,8 @@ void Board::makeMove(const Move& m) {
   }
 
   pieces[us][pt] ^= from_to_bb;
+  squares[from] = NO_PIECE;
+  squares[to] = pt;
   occupancy[us] ^= from_to_bb;
   allPieces ^= from_to_bb;
   new_hash ^= Zobrist::pieces_keys[Zobrist::piece_to_idx(us, pt, from)];
@@ -68,6 +70,7 @@ void Board::makeMove(const Move& m) {
       case MoveType::PROMOTION:
         pieces[us][PAWN] ^= to_bb;
         pieces[us][m.promotion_type()] |= to_bb;
+        squares[to] = m.promotion_type();
         new_hash ^= Zobrist::pieces_keys[Zobrist::piece_to_idx(us, pt, to)];
         new_hash ^= Zobrist::pieces_keys[Zobrist::piece_to_idx(
             us, m.promotion_type(), to)];
@@ -79,6 +82,7 @@ void Board::makeMove(const Move& m) {
         Bitboard capturedSq_bb = Bitboards::square_bb(capturedSq);
         captured = PAWN;
         pieces[them][PAWN] ^= capturedSq_bb;
+        squares[capturedSq] = NO_PIECE;
         occupancy[them] ^= capturedSq_bb;
         allPieces ^= capturedSq_bb;
         new_hash ^=
@@ -99,6 +103,8 @@ void Board::makeMove(const Move& m) {
         Bitboard rook_from_to =
             (Bitboards::square_bb(rookFrom) | Bitboards::square_bb(rookTo));
         pieces[us][ROOK] ^= rook_from_to;
+        squares[rookFrom] = NO_PIECE;
+        squares[rookTo] = ROOK;
         occupancy[us] ^= rook_from_to;
         allPieces ^= rook_from_to;
         new_hash ^=

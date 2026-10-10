@@ -74,11 +74,14 @@ printf "uci\nisready\nposition startpos\ngo depth 4\nquit\n" | ./build/release/u
 
 ## Benchmark
 
-Run the regular search benchmark over `resources/bench_fen_list.txt`:
+Run the regular search benchmark over `resources/bench_fen_list.txt`. The
+optional argument is the search depth, defaulting to `5`; depth `9` takes about
+a second and is a steadier speed measurement:
 
 ```sh
 make release
 ./build/release/bench
+./build/release/bench 9
 ```
 
 Build profiling-oriented binaries with symbols and release optimizations:
@@ -99,15 +102,24 @@ make branching
 ## Perft
 
 `perft` is useful for validating move generation. The first argument is depth;
-if no FEN is supplied, the standard starting position is used.
+if no FEN is supplied, the standard starting position is used. It runs on one
+thread unless `-t` asks for more.
 
 ```sh
 make release
 ./build/release/perft 5
 ./build/release/perft 4 "r3k2r/p1ppqpb1/bn2pnp1/2pP4/1p2P3/2N2N2/PPPB1PPP/R2QKB1R w KQkq -"
+./build/release/perft 7 -t 16
 ```
 
-The program prints a divide by root move plus the total node count.
+The program prints a divide by root move, the total node count, and the speed.
+
+Both builds use the engine's `MoveGen::generate_all` and `Board::makeMove`,
+sharing the simple perft implementation in `tools/perft.h` with the test suite.
+Bulk counting is the default: the final ply counts legal moves directly. The
+release build can distribute root moves across threads; the debug runner uses
+non-bulk counting on one thread to report captures and checks. Perft does not
+use a transposition table or cache subtree node counts.
 
 ## Test
 

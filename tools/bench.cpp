@@ -17,7 +17,9 @@
 #include "tt.h"
 #include "zobrist.h"
 
-int main() {
+// Usage: bench [depth]. The depth defaults to 5.
+int main(int argc, char** argv) {
+  const int depth = argc > 1 ? std::stoi(argv[1]) : 5;
   std::ifstream fenFile("resources/bench_fen_list.txt");
   if (!fenFile) {
     std::cerr << "Failed to open FEN file.\n";
@@ -38,7 +40,7 @@ int main() {
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    FoChess::iterative_deepening(5, board, tt);
+    FoChess::iterative_deepening(depth, board, tt);
 
     // Find best move (assuming you have this function)
     Move best = FoChess::g_search_stats.best_move.load();

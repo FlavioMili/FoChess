@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------------
 //  FoChess
-//  Copyright (c) 2025 Flavio Milinanni. All Rights Reserved.
+//  Copyright (c) 2026 Flavio Milinanni. All Rights Reserved.
 //
 //  Read the LICENSE file in the project root please.
 // -----------------------------------------------------------------------------
@@ -280,6 +280,30 @@ constexpr auto bishop_attack_offsets = make_attack_offsets(bishop_magics);
 inline std::array<Bitboard, attack_table_size(rook_magics)> rook_attack_table;
 inline std::array<Bitboard, attack_table_size(bishop_magics)>
     bishop_attack_table;
+
+// Everything a PEXT lookup needs in one 16-byte entry: one load for the mask
+// and the square's slice of the attack table instead of a 24-byte SMagic read
+// plus a separate offset-table read.
+struct PextEntry {
+  Bitboard mask;
+  const Bitboard* attacks;
+};
+
+template <size_t N, size_t TableSize>
+constexpr std::array<PextEntry, N> make_pext_entries(
+    const std::array<SMagic, N>& magics,
+    const std::array<size_t, N>& offsets,
+    const std::array<Bitboard, TableSize>& table) {
+  std::array<PextEntry, N> entries{};
+  for (size_t sq = 0; sq < N; ++sq)
+    entries[sq] = {magics[sq].mask, table.data() + offsets[sq]};
+  return entries;
+}
+
+alignas(64) constexpr auto rook_pext = make_pext_entries(
+    rook_magics, rook_attack_offsets, rook_attack_table);
+alignas(64) constexpr auto bishop_pext = make_pext_entries(
+    bishop_magics, bishop_attack_offsets, bishop_attack_table);
 #else
 inline std::array<std::array<Bitboard, 4096>, 64> rook_attack_table;
 inline std::array<std::array<Bitboard, 512>, 64> bishop_attack_table;
@@ -342,24 +366,35 @@ inline void init_magic_tables() {
 ///  lookup functions
 // ------------------------------------------------------------
 inline Bitboard rook_attacks(Square sq, Bitboard occ) noexcept {
-  const SMagic& m = rook_magics[sq];
-  const size_t idx = sliding_attack_index(occ, m);
 #if defined(FOCHESS_PEXT_ENABLED)
-  return rook_attack_table[rook_attack_offsets[sq] + idx];
+  const PextEntry& e = rook_pext[sq];
+  return e.attacks[_pext_u64(occ, e.mask)];
 #else
-  return rook_attack_table[sq][idx];
+  return rook_attack_table[sq][sliding_attack_index(occ, rook_magics[sq])];
 #endif
 }
 
 inline Bitboard bishop_attacks(Square sq, Bitboard occ) noexcept {
-  const SMagic& m = bishop_magics[sq];
-  const size_t idx = sliding_attack_index(occ, m);
 #if defined(FOCHESS_PEXT_ENABLED)
-  return bishop_attack_table[bishop_attack_offsets[sq] + idx];
+  const PextEntry& e = bishop_pext[sq];
+  return e.attacks[_pext_u64(occ, e.mask)];
 #else
-  return bishop_attack_table[sq][idx];
+  return bishop_attack_table[sq][sliding_attack_index(occ, bishop_magics[sq])];
 #endif
 }
+
+// Slider attacks on an empty board: a bishop/rook/queen can only attack a
+// square along these lines, which makes them a cheap filter before a lookup.
+constexpr std::array<Bitboard, 64> make_empty_board_lines(bool diagonal) {
+  std::array<Bitboard, 64> table{};
+  for (size_t sq = 0; sq < 64; ++sq)
+    table[sq] = diagonal ? generate_bishop_attacks(Square(sq), 0)
+                         : generate_rook_attacks(Square(sq), 0);
+  return table;
+}
+
+inline constexpr auto diagonal_lines = make_empty_board_lines(true);
+inline constexpr auto straight_lines = make_empty_board_lines(false);
 
 inline Bitboard queen_attacks(Square sq, Bitboard occ) noexcept {
   return rook_attacks(sq, occ) | bishop_attacks(sq, occ);
